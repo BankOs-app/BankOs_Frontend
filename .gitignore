@@ -1,0 +1,26 @@
+# =========================
+# Flutter & Dart - .gitignore
+# =========================
+
+# Salida de compilación y herramientas de Dart/Flutter
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Credenciales y variables de entorno (Secretos)
+.env*
+!.env.example
+
+# Android & iOS llaves privadas
+*.jks
+*.keystore
+key.properties
+Pods/
+
+# Editores y Sistema Operativo
+.vscode/
+.idea/
+*.iml
+.DS_Store

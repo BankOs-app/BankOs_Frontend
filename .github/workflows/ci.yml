@@ -1,0 +1,43 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 1. Escaneo de secretos (Gitleaks)
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verificar que no haya credenciales
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 2. Linter y Pruebas técnicas de Flutter
+  test:
+    needs: secret-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Ejecutar análisis y pruebas
+        run: |
+          if [ -f "pubspec.yaml" ]; then
+            flutter pub get
+            flutter analyze
+            flutter test
+          else
+            echo "Aviso: pubspec.yaml aún no existe. Se activará automáticamente cuando inicialices la app Flutter."
+          fi
