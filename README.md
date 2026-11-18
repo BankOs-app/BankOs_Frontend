@@ -194,23 +194,36 @@ flutter build web --release
 
 ---
 
-## Project Directory Structure
+## Project Directory Structure (Clean Architecture)
+
+The application follows the **Feature-First Clean Architecture** standard, isolating business rules (Domain) from frameworks (Presentation) and external interfaces (Data), supported by a shared core foundation:
 
 ```text
 BankOs_Frontend/
-├── .env.example              # Sample environment configuration
-├── analysis_options.yaml      # Static analysis lint rules
-├── android/                   # Native Android host configuration
-│   ├── app/
-│   │   ├── build.gradle.kts
-│   │   └── src/
-│   └── build.gradle.kts
 ├── lib/
-│   └── main.dart              # Main application entry point & BankOS home screen
-├── pubspec.yaml               # Flutter package definitions & dependencies
+│   ├── main.dart                  # Framework entry point, GoRouter & Riverpod setup
+│   ├── main.g.dart                # Generated Riverpod code
+│   ├── core/                      # Shared cross-cutting concerns & foundations
+│   │   ├── constants/             # AppColors, AppStrings, AppDimensions
+│   │   ├── errors/                # Failures and Exceptions hierarchy
+│   │   ├── network/               # DioClient & API endpoints
+│   │   ├── router/                # AppRouter navigation configuration
+│   │   ├── theme/                 # Material Design 3 theme
+│   │   └── usecases/              # Generic UseCase abstractions
+│   └── features/
+│       ├── home/                  # Home feature module
+│       │   └── presentation/screens/
+│       │       ├── home_screen.dart     # HomeScreen (ConsumerWidget)
+│       │       └── details_screen.dart  # DetailsScreen (ConsumerWidget)
+│       └── dashboard/             # Dashboard feature module
+│           ├── domain/            # Entities, repository interfaces & usecases
+│           ├── data/              # Data sources, models & repository implementations
+│           └── presentation/      # Notifiers, state & widgets
 ├── test/
-│   └── widget_test.dart       # Widget and smoke tests
-└── web/                       # Web entry files (index.html, manifest, icons)
+│   ├── widget_test.dart           # Riverpod & GoRouter smoke tests
+│   └── features/dashboard/        # Clean Architecture unit tests
+├── pubspec.yaml                   # Dependencies (Riverpod, Dio, GoRouter)
+└── analysis_options.yaml          # Static linting rules
 ```
 
 ---
