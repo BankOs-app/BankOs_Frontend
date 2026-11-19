@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -19,28 +19,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   final List<_OnboardingPageData> _pages = const [
     _OnboardingPageData(
-      title: 'Toma el control\nde tus finanzas',
+      title: 'Banca digital\nsegura',
       subtitle:
-          'Seguridad financiera para tener control total de tus transacciones y finanzas.',
+          'Tu dinero y tu información protegidos con tecnología de última generación.',
       illustration: SecurityIllustrationWidget(),
     ),
     _OnboardingPageData(
-      title: 'Transferencias\nal instante',
+      title: 'Haz crecer\ntu dinero',
       subtitle:
-          'Envía y recibe dinero en segundos a cualquier banco sin comisiones ocultas.',
-      illustration: TransfersIllustrationWidget(),
+          'Ahorra, invierte y alcanza tus metas con herramientas simples y transparentes.',
+      illustration: GrowthIllustrationWidget(),
     ),
     _OnboardingPageData(
-      title: 'Haz crecer\ntus ahorros',
+      title: 'Todo en un\nsolo lugar',
       subtitle:
-          'Monitorea tus gastos y haz crecer tu dinero con herramientas inteligentes.',
-      illustration: SavingsIllustrationWidget(),
-    ),
-    _OnboardingPageData(
-      title: 'Tu banco digital\nsiempre contigo',
-      subtitle:
-          'Accede y gestiona tus productos financieros 24/7 con máxima seguridad.',
-      illustration: DigitalBankIllustrationWidget(),
+          'Tarjetas, transferencias, pagos y más, desde una sola app.',
+      illustration: CardsIllustrationWidget(),
     ),
   ];
 
@@ -57,30 +51,36 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      context.go('/');
+      context.go('/login');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLastPage = _currentPage == _pages.length - 1;
+
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
+      backgroundColor: AppColors.onboardingBackground,
       body: SafeArea(
         child: Column(
           children: [
-            // Top action bar with optional Skip button
+            // Top action bar with clean "Omitir" button matching mockup
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Align(
                 alignment: Alignment.topRight,
                 child: TextButton(
-                  onPressed: () => context.go('/'),
+                  onPressed: () => context.go('/login'),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.textOnDarkMuted,
+                    foregroundColor: AppColors.textSecondary,
                   ),
                   child: const Text(
-                    'Saltar',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    'Omitir',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ),
@@ -103,16 +103,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Illustration
+                        // Clean, minimalist illustration
                         page.illustration,
-                        const SizedBox(height: 36),
+                        const SizedBox(height: 32),
 
-                        // Title
+                        // Title in primary dark navy
                         Text(
                           page.title,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            color: AppColors.textOnDark,
+                            color: AppColors.textPrimary,
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
                             height: 1.25,
@@ -120,12 +120,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        // Subtitle
+                        // Subtitle in soft muted slate
                         Text(
                           page.subtitle,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            color: AppColors.textOnDarkMuted,
+                            color: AppColors.textSecondary,
                             fontSize: 14,
                             height: 1.45,
                           ),
@@ -139,15 +139,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
             const SizedBox(height: 16),
 
-            // 4-Dot Page Indicator
+            // 3-Dot Page Indicator
             OnboardingPageIndicator(
               count: _pages.length,
               currentIndex: _currentPage,
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
-            // Bottom "Comenzar" Action Button
+            // Action Button: Clean rounded rectangle, no exaggerated shadows or borders
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
               child: SizedBox(
@@ -156,16 +156,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 child: ElevatedButton(
                   onPressed: _onActionButtonPressed,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.buttonBlue,
+                    backgroundColor: isLastPage
+                        ? AppColors.buttonAccent
+                        : AppColors.primaryNavy,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: const Text(
-                    'Comenzar',
-                    style: TextStyle(
+                  child: Text(
+                    isLastPage ? 'Comenzar' : 'Siguiente',
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.2,

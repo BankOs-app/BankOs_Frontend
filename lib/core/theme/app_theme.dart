@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../constants/app_colors.dart';
 
 abstract class AppTheme {
@@ -6,9 +6,10 @@ abstract class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.slateDark,
+        seedColor: AppColors.primaryNavy,
         primary: AppColors.primaryNavy,
-        secondary: AppColors.emeraldSecondary,
+        secondary: AppColors.brandBlue,
+        tertiary: AppColors.accentBlue,
         surface: AppColors.surfaceBackground,
       ),
       scaffoldBackgroundColor: AppColors.scaffoldBackground,

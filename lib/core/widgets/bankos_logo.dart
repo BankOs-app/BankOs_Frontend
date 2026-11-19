@@ -1,41 +1,84 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../constants/app_colors.dart';
 
 class BankOsLogo extends StatelessWidget {
   final double iconSize;
   final double fontSize;
   final Color textColor;
+  final bool isVertical;
+  final bool showText;
+  final String? subtitle;
+  final Color? subtitleColor;
+  final double? subtitleFontSize;
 
   const BankOsLogo({
     super.key,
     this.iconSize = 52.0,
     this.fontSize = 38.0,
     this.textColor = AppColors.textOnDark,
+    this.isVertical = false,
+    this.showText = true,
+    this.subtitle,
+    this.subtitleColor,
+    this.subtitleFontSize = 15.0,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconWidget = SizedBox(
+      width: iconSize,
+      height: iconSize,
+      child: CustomPaint(
+        painter: _BankOsLogoPainter(),
+      ),
+    );
+
+    if (!showText || fontSize <= 0) {
+      return iconWidget;
+    }
+
+    final titleWidget = Text(
+      'BankOs',
+      style: TextStyle(
+        color: textColor,
+        fontSize: fontSize,
+        fontWeight: FontWeight.bold,
+        letterSpacing: -0.5,
+      ),
+    );
+
+    if (isVertical) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          iconWidget,
+          const SizedBox(height: 16),
+          titleWidget,
+          if (subtitle != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              subtitle!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: subtitleColor ?? Colors.white.withValues(alpha: 0.85),
+                fontSize: subtitleFontSize,
+                fontWeight: FontWeight.w400,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SizedBox(
-          width: iconSize,
-          height: iconSize,
-          child: CustomPaint(
-            painter: _BankOsLogoPainter(),
-          ),
-        ),
+        iconWidget,
         const SizedBox(width: 14),
-        Text(
-          'BankOs',
-          style: TextStyle(
-            color: textColor,
-            fontSize: fontSize,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.5,
-          ),
-        ),
+        titleWidget,
       ],
     );
   }
@@ -47,71 +90,69 @@ class _BankOsLogoPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // Gradient matching the cyan to royal blue logo in the mockup
-    final gradient = const LinearGradient(
+    // Geometric origami play/chevron shape
+    // Design colors: #6DA5FA (accent), #1E3A8A (brand), #031F48 (navy)
+    final topGradient = const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        Color(0xFFBAE6FD), // soft cyan
-        Color(0xFF38BDF8), // vibrant cyan
-        Color(0xFF2563EB), // deep vibrant blue
+        Color(0xFF8BB9FC),
+        Color(0xFF6DA5FA),
+        Color(0xFF1E3A8A),
       ],
-      stops: [0.0, 0.45, 1.0],
     ).createShader(Rect.fromLTWH(0, 0, w, h));
 
-    final paint = Paint()
-      ..shader = gradient
+    final bottomGradient = const LinearGradient(
+      begin: Alignment.bottomLeft,
+      end: Alignment.topRight,
+      colors: [
+        Color(0xFF031F48),
+        Color(0xFF1E3A8A),
+        Color(0xFF6DA5FA),
+      ],
+    ).createShader(Rect.fromLTWH(0, 0, w, h));
+
+    // Outer triangular ribbon
+    final mainPaint = Paint()
+      ..shader = topGradient
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
-    // Stylized rounded "b" glyph contour
     final path = Path();
-    final radius = w * 0.28;
-
-    // Top left rounded corner
-    path.moveTo(w * 0.32, 0);
-    path.quadraticBezierTo(0, 0, 0, h * 0.35);
-
-    // Left stem downwards to bottom
-    path.lineTo(0, h * 0.65);
-    path.quadraticBezierTo(0, h, w * 0.42, h);
-
-    // Bottom right loop
-    path.quadraticBezierTo(w, h, w, h * 0.58);
-    path.quadraticBezierTo(w, h * 0.18, w * 0.55, h * 0.18);
-    path.lineTo(w * 0.35, h * 0.18);
-    path.quadraticBezierTo(w * 0.22, h * 0.18, w * 0.22, 0);
+    path.moveTo(w * 0.15, h * 0.08);
+    path.lineTo(w * 0.78, h * 0.42);
+    path.quadraticBezierTo(w * 0.96, h * 0.50, w * 0.78, h * 0.58);
+    path.lineTo(w * 0.15, h * 0.92);
+    path.quadraticBezierTo(w * 0.04, h * 0.98, w * 0.04, h * 0.84);
+    path.lineTo(w * 0.04, h * 0.16);
+    path.quadraticBezierTo(w * 0.04, h * 0.02, w * 0.15, h * 0.08);
     path.close();
 
-    // Inner cutout circle
-    final holePath = Path()
-      ..addOval(
-        Rect.fromCircle(
-          center: Offset(w * 0.52, h * 0.62),
-          radius: radius * 0.60,
-        ),
-      );
+    // Inner cutout creating origami fold
+    final cutout = Path();
+    cutout.moveTo(w * 0.32, h * 0.35);
+    cutout.lineTo(w * 0.60, h * 0.50);
+    cutout.lineTo(w * 0.32, h * 0.65);
+    cutout.close();
 
-    final finalPath = Path.combine(PathOperation.difference, path, holePath);
-    canvas.drawPath(finalPath, paint);
+    final logoPath = Path.combine(PathOperation.difference, path, cutout);
+    canvas.drawPath(logoPath, mainPaint);
 
-    // Subtle inner highlight accent
-    final highlightPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.35)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.04
+    // Bottom fold facet
+    final foldPaint = Paint()
+      ..shader = bottomGradient
+      ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
-    canvas.drawArc(
-      Rect.fromCircle(
-        center: Offset(w * 0.52, h * 0.62),
-        radius: radius * 0.72,
-      ),
-      3.14,
-      1.57,
-      false,
-      highlightPaint,
-    );
+    final foldPath = Path();
+    foldPath.moveTo(w * 0.04, h * 0.55);
+    foldPath.lineTo(w * 0.78, h * 0.58);
+    foldPath.lineTo(w * 0.15, h * 0.92);
+    foldPath.quadraticBezierTo(w * 0.04, h * 0.98, w * 0.04, h * 0.84);
+    foldPath.close();
+
+    final foldCombined = Path.combine(PathOperation.intersect, logoPath, foldPath);
+    canvas.drawPath(foldCombined, foldPaint);
   }
 
   @override

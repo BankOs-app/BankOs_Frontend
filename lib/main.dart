@@ -1,54 +1,17 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'features/home/presentation/screens/details_screen.dart';
-import 'features/home/presentation/screens/home_screen.dart';
-import 'features/launch/presentation/screens/launch_screen.dart';
-import 'features/onboarding/presentation/screens/onboarding_screen.dart';
+import 'core/router/app_router.dart';
+import 'core/theme/app_theme.dart';
 
 part 'main.g.dart';
 
-// We create a "provider", which will store a value (here "Hello world").
-// By using a provider, this allows us to mock/override the value exposed.
+// Provider generated with riverpod_annotation
 @riverpod
 String helloWorld(Ref ref) {
-  return 'Hello world';
+  return 'BankOS';
 }
-
-/// The route configuration.
-final GoRouter _router = GoRouter(
-  initialLocation: '/launch',
-  routes: <RouteBase>[
-    GoRoute(
-      path: '/launch',
-      builder: (BuildContext context, GoRouterState state) {
-        return const LaunchScreen();
-      },
-    ),
-    GoRoute(
-      path: '/onboarding',
-      builder: (BuildContext context, GoRouterState state) {
-        return const OnboardingScreen();
-      },
-    ),
-    GoRoute(
-      path: '/',
-      builder: (BuildContext context, GoRouterState state) {
-        return const HomeScreen();
-      },
-      routes: <RouteBase>[
-        GoRoute(
-          path: 'details',
-          builder: (BuildContext context, GoRouterState state) {
-            return const DetailsScreen();
-          },
-        ),
-      ],
-    ),
-  ],
-);
 
 void main() {
   runApp(
@@ -70,7 +33,8 @@ class MyApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'BankOS',
       debugShowCheckedModeBanner: false,
-      routerConfig: _router,
+      theme: AppTheme.lightTheme,
+      routerConfig: AppRouter.router,
     );
   }
 }

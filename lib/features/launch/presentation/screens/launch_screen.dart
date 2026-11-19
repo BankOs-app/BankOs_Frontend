@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -20,7 +20,7 @@ class _LaunchScreenState extends ConsumerState<LaunchScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto navigation to onboarding after brief launch presentation
+    // Auto navigation to onboarding after launch presentation
     _navigationTimer = Timer(const Duration(milliseconds: 2400), () {
       if (mounted) {
         context.go('/onboarding');
@@ -44,43 +44,68 @@ class _LaunchScreenState extends ConsumerState<LaunchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
+      backgroundColor: AppColors.launchBackground,
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _navigateToOnboarding,
         child: Stack(
           children: [
-            // Ambient wave texture in the lower section
-            Positioned.fill(
+            // Smooth, subtle flowing wave texture at lower section
+            const Positioned.fill(
               child: CustomPaint(
-                painter: const WaveBackgroundPainter(),
+                painter: WaveBackgroundPainter(),
               ),
             ),
 
-            // BankOs centered brand logo
+            // BankOs centered brand logo (vertical layout matching mockup)
             const Center(
               child: BankOsLogo(
-                iconSize: 58,
-                fontSize: 42,
+                isVertical: true,
+                iconSize: 76,
+                fontSize: 40,
+                subtitle: 'Tu banco digital,\nsiempre contigo',
+                textColor: Colors.white,
+                subtitleColor: Color(0xFFE2E8F0),
+                subtitleFontSize: 15,
               ),
             ),
 
-            // Minimalist circular loading indicator at bottom center
+            // Subtle 3-dot bottom indicator matching design mockup
             Positioned(
               left: 0,
               right: 0,
-              bottom: 48,
+              bottom: 52,
               child: Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.brandCyan,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                    backgroundColor: AppColors.brandCyan.withValues(alpha: 0.15),
-                  ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.35),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.35),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
