@@ -54,4 +54,11 @@ abstract class OperationsRepository {
     required double amount,
     String? concept,
   });
+
+  Future<void> updateBankBranding({
+    required String slug,
+    required String primaryColor,
+    required String accentColor,
+    required String logoUrl,
+  });
 }

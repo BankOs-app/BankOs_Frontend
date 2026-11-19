@@ -128,4 +128,19 @@ class OperationsRepositoryImpl implements OperationsRepository {
       concept: concept,
     );
   }
+
+  @override
+  Future<void> updateBankBranding({
+    required String slug,
+    required String primaryColor,
+    required String accentColor,
+    required String logoUrl,
+  }) {
+    return remoteDataSource.updateBankBranding(
+      slug: slug,
+      primaryColor: primaryColor,
+      accentColor: accentColor,
+      logoUrl: logoUrl,
+    );
+  }
 }

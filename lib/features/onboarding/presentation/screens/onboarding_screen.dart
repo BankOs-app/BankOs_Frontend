@@ -51,7 +51,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      context.go('/login');
+      context.go('/select-tenant');
     }
   }
 
@@ -70,7 +70,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: Align(
                 alignment: Alignment.topRight,
                 child: TextButton(
-                  onPressed: () => context.go('/login'),
+                  onPressed: () => context.go('/select-tenant'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.textSecondary,
                   ),

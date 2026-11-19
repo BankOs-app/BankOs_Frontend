@@ -3,8 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../../core/widgets/bankos_logo.dart';
 import '../../domain/entities/user_entity.dart';
+import '../../../operations/presentation/providers/operations_providers.dart';
 import '../providers/auth_providers.dart';
 import '../providers/auth_state.dart';
 import '../widgets/auth_text_field.dart';
@@ -29,24 +31,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
-    final password = _passwordController.text;
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor ingresa tu correo electrónico.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor ingresa tu PIN de 4 dígitos.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     final isAdminEmail = email.toLowerCase().contains('admin');
     final role = isAdminEmail ? UserRole.admin : UserRole.client;
 
     final success = await ref.read(authNotifierProvider.notifier).login(
-          email.isEmpty ? 'carlos@bankos.com' : email,
-          password.isEmpty ? '••••••••' : password,
+          email,
+          password,
           role: role,
         );
 
     if (success && mounted) {
+      ref.read(operationsNotifierProvider.notifier).switchActiveBankByEmail(email);
       final user = ref.read(authNotifierProvider).user;
       if (user?.isAdmin == true || isAdminEmail) {
         context.go('/admin');
       } else {
-        context.go('/select-tenant');
+        context.go('/home');
       }
+    } else if (mounted) {
+      final errorMsg = ref.read(authNotifierProvider).errorMessage ??
+          'Error al iniciar sesión. Revisa tus credenciales.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -56,10 +91,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (success && mounted) {
       final user = ref.read(authNotifierProvider).user;
+      if (user?.email != null) {
+        ref.read(operationsNotifierProvider.notifier).switchActiveBankByEmail(user!.email);
+      }
       if (user?.isAdmin == true) {
         context.go('/admin');
       } else {
-        context.go('/select-tenant');
+        context.go('/home');
       }
     }
   }
@@ -67,6 +105,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
+    final operationsState = ref.watch(operationsNotifierProvider);
+    final currentBank = operationsState.currentBank;
     final isLoading = authState.status == AuthStatus.loading;
 
     return Scaffold(
@@ -83,14 +123,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: IntrinsicHeight(
                   child: Column(
                     children: [
-                      const SizedBox(height: 40),
+                      // Barra superior con botón volver a selección de bancos
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios_new,
+                                color: AppColors.primaryNavy, size: 20),
+                            onPressed: () => context.go('/select-tenant'),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => context.go('/select-tenant'),
+                            icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                            label: const Text(
+                              'Elegir otro banco',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primaryNavy,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
 
                       // BankOs Logo Centered
                       const Center(
                         child: BankOsLogo(
-                          iconSize: 56,
-                          fontSize: 40,
+                          iconSize: 52,
+                          fontSize: 36,
                           textColor: AppColors.primaryNavy,
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Badge del banco activo seleccionado
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            BankBrandLogo(bank: currentBank, size: 18, showName: false),
+                            const SizedBox(width: 8),
+                            Text(
+                              currentBank.name,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryNavy,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
 
@@ -209,6 +299,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               horizontal: 20, vertical: 12),
                         ),
                       ),
+
 
                       const Spacer(),
 

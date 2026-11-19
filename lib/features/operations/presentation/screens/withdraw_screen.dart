@@ -24,7 +24,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
 
   RegisteredBankEntity? _selectedBank;
   BankCardEntity? _selectedCard;
-  String _withdrawCurrency = 'COP';
+  String? _withdrawCurrency;
 
   @override
   void initState() {
@@ -83,15 +83,17 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
       return;
     }
 
+    final withdrawCurr = _withdrawCurrency ?? card.currency;
+
     double requiredDebit = amount;
-    if (_withdrawCurrency != card.currency) {
-      final rate = StaticExchangeRate.getRate(_withdrawCurrency, card.currency);
+    if (withdrawCurr != card.currency) {
+      final rate = StaticExchangeRate.getRate(withdrawCurr, card.currency);
       requiredDebit = amount * rate;
     }
 
     if (requiredDebit > card.availableBalance) {
       _showSnackBar(
-        'Saldo insuficiente en la tarjeta (${card.formattedBalance}). Se requieren \$${requiredDebit.toStringAsFixed(2)} ${card.currency} para retirar \$${amount.toStringAsFixed(2)} $_withdrawCurrency.',
+        'Saldo insuficiente en la tarjeta (${card.formattedBalance}). Se requieren \$${requiredDebit.toStringAsFixed(2)} ${card.currency} para retirar \$${amount.toStringAsFixed(2)} $withdrawCurr.',
       );
       return;
     }
@@ -102,10 +104,10 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
           bank: bank,
           card: card,
           amount: amount,
-          withdrawCurrency: _withdrawCurrency,
+          withdrawCurrency: withdrawCurr,
           concept: _conceptController.text.trim().isNotEmpty
               ? _conceptController.text.trim()
-              : 'Retiro en $_withdrawCurrency desde ${card.cardTypeLabel}',
+              : 'Retiro en $withdrawCurr desde ${card.cardTypeLabel}',
         );
 
     if (mounted) {
@@ -135,7 +137,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
               ],
             ),
             content: Text(
-              'Has retirado \$${amount.toStringAsFixed(2)} $_withdrawCurrency exitosamente desde ${bank.name}.',
+              'Has retirado \$${amount.toStringAsFixed(2)} $withdrawCurr exitosamente desde ${bank.name}.',
               style: const TextStyle(
                   color: AppColors.textSecondary, fontSize: 13),
             ),
@@ -183,6 +185,11 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     if (_selectedCard == null && availableCards.isNotEmpty) {
       _selectedCard = availableCards.first;
     }
+
+    _withdrawCurrency ??=
+        _selectedCard?.currency ?? _selectedBank?.currency ?? 'COP';
+
+    final effectiveWithdrawCurrency = _withdrawCurrency!;
 
     final isLoading = operationsState.status == OperationsStatus.loading;
 
@@ -313,6 +320,9 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                       onChanged: (card) {
                         setState(() {
                           _selectedCard = card;
+                          if (card != null) {
+                            _withdrawCurrency = card.currency;
+                          }
                         });
                       },
                     ),
@@ -401,8 +411,13 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.attach_money_rounded,
-                        color: AppColors.brandBlue, size: 20),
+                    prefixIcon: Icon(
+                      _withdrawCurrency == 'EUR'
+                          ? Icons.euro_rounded
+                          : Icons.attach_money_rounded,
+                      color: AppColors.brandBlue,
+                      size: 20,
+                    ),
                     suffixText: _withdrawCurrency,
                     suffixStyle: const TextStyle(
                       color: AppColors.brandBlue,
@@ -452,17 +467,16 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                 ),
               ),
 
-              const SizedBox(height: 18),
-
-              // Tablero de Conversión en Dólares y Euros en Tiempo Real
+              // Tablero de Conversión en Tiempo Real (solo si difieren divisas)
               MultiCurrencyConversionCard(
-                originCurrency: _withdrawCurrency,
-                destinationCurrency:
+                originCurrency:
                     _selectedCard?.currency ?? _selectedBank?.currency ?? 'COP',
+                destinationCurrency: effectiveWithdrawCurrency,
                 amount: double.tryParse(_amountController.text.trim()) ?? 0.0,
+                isWithdrawal: true,
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Botón Confirmar Retiro
               SizedBox(

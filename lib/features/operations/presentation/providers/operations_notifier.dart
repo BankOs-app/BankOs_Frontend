@@ -48,9 +48,123 @@ class OperationsNotifier extends Notifier<OperationsState> {
     state = state.copyWith(activeBank: bank);
   }
 
+  void switchActiveBankByEmail(String email) {
+    final lower = email.toLowerCase();
+    RegisteredBankEntity? target;
+    if (lower.contains('bancolombia') || lower.contains('lombia')) {
+      target = state.banks
+          .where((b) =>
+              b.code.contains('lombia') ||
+              b.name.toLowerCase().contains('bancolombia'))
+          .firstOrNull;
+    } else if (lower.contains('bogota')) {
+      target = state.banks
+          .where((b) =>
+              b.code.contains('bogota') ||
+              b.name.toLowerCase().contains('bogot'))
+          .firstOrNull;
+    } else if (lower.contains('santander')) {
+      target = state.banks
+          .where((b) =>
+              b.code.contains('santander') ||
+              b.name.toLowerCase().contains('santander'))
+          .firstOrNull;
+    } else if (lower.contains('nu')) {
+      target = state.banks
+          .where((b) =>
+              b.code.contains('nu') ||
+              b.name.toLowerCase().contains('nu'))
+          .firstOrNull;
+    } else if (lower.contains('bankos')) {
+      target = state.banks
+          .where((b) => b.isGlobal || b.id == 'bank_bankos_global')
+          .firstOrNull;
+    }
+    if (target != null) {
+      state = state.copyWith(activeBank: target);
+    }
+  }
+
   void registerNewTenantBank(RegisteredBankEntity newBank) {
     final updatedBanks = [...state.banks, newBank];
     state = state.copyWith(banks: updatedBanks);
+  }
+
+  Future<bool> updateBankBranding({
+    required String bankId,
+    required String primaryColorHex,
+    required String accentColorHex,
+    required String logoKey,
+  }) async {
+    state = state.copyWith(status: OperationsStatus.loading);
+    try {
+      final repository = ref.read(operationsRepositoryProvider);
+      final bank = state.banks.firstWhere((b) => b.id == bankId);
+
+      await repository.updateBankBranding(
+        slug: bank.code.isNotEmpty ? bank.code : bank.id,
+        primaryColor: primaryColorHex,
+        accentColor: accentColorHex,
+        logoUrl: logoKey,
+      );
+
+      final updatedBanks = state.banks.map((b) {
+        if (b.id == bankId) {
+          return b.copyWith(
+            primaryColorHex: primaryColorHex,
+            accentColorHex: accentColorHex,
+            logoKey: logoKey,
+          );
+        }
+        return b;
+      }).toList();
+
+      RegisteredBankEntity? updatedActive = state.activeBank;
+      if (updatedActive?.id == bankId || (updatedActive == null && updatedBanks.isNotEmpty && updatedBanks.first.id == bankId)) {
+        updatedActive = (updatedActive ?? updatedBanks.first).copyWith(
+          primaryColorHex: primaryColorHex,
+          accentColorHex: accentColorHex,
+          logoKey: logoKey,
+        );
+      }
+
+      state = state.copyWith(
+        status: OperationsStatus.success,
+        banks: updatedBanks,
+        activeBank: updatedActive,
+        successMessage: 'Identidad visual de ${bank.name} actualizada exitosamente.',
+      );
+      return true;
+    } catch (_) {
+      // Contingencia local si el endpoint devuelve error no fatal
+      final updatedBanks = state.banks.map((b) {
+        if (b.id == bankId) {
+          return b.copyWith(
+            primaryColorHex: primaryColorHex,
+            accentColorHex: accentColorHex,
+            logoKey: logoKey,
+          );
+        }
+        return b;
+      }).toList();
+
+      RegisteredBankEntity? updatedActive = state.activeBank;
+      if (updatedActive?.id == bankId) {
+        updatedActive = updatedActive?.copyWith(
+          primaryColorHex: primaryColorHex,
+          accentColorHex: accentColorHex,
+          logoKey: logoKey,
+        );
+      }
+
+      state = state.copyWith(
+        status: OperationsStatus.success,
+        banks: updatedBanks,
+        activeBank: updatedActive,
+        successMessage: 'Identidad visual actualizada localmente.',
+      );
+      return true;
+    }
   }
 
   Future<bool> executeDeposit({

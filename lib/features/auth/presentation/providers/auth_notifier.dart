@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/errors/exceptions.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/usecases/login_usecase.dart';
 import 'auth_providers.dart';
@@ -35,9 +36,12 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       return true;
     } catch (e) {
+      final msg = e is ServerException
+          ? e.message
+          : e.toString().replaceFirst('ServerException: ', '').replaceFirst('Exception: ', '');
       state = state.copyWith(
         status: AuthStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: msg,
       );
       return false;
     }
@@ -54,9 +58,12 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       return true;
     } catch (e) {
+      final msg = e is ServerException
+          ? e.message
+          : e.toString().replaceFirst('ServerException: ', '').replaceFirst('Exception: ', '');
       state = state.copyWith(
         status: AuthStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: msg,
       );
       return false;
     }
@@ -85,9 +92,12 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       return true;
     } catch (e) {
+      final msg = e is ServerException
+          ? e.message
+          : e.toString().replaceFirst('ServerException: ', '').replaceFirst('Exception: ', '');
       state = state.copyWith(
         status: AuthStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: msg,
       );
       return false;
     }

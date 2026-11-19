@@ -357,9 +357,14 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.attach_money_rounded,
-                        color: AppColors.brandBlue, size: 20),
-                    suffixText: _selectedDestBank?.currency ?? 'COP',
+                    prefixIcon: Icon(
+                      (_selectedOriginAccount?.currency == 'EUR')
+                          ? Icons.euro_rounded
+                          : Icons.attach_money_rounded,
+                      color: AppColors.brandBlue,
+                      size: 20,
+                    ),
+                    suffixText: _selectedOriginAccount?.currency ?? 'COP',
                     suffixStyle: const TextStyle(
                       color: AppColors.brandBlue,
                       fontWeight: FontWeight.bold,
@@ -408,16 +413,17 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
                 ),
               ),
 
-              const SizedBox(height: 18),
-
-              // Tablero de Conversión en Dólares y Euros en Tiempo Real
+              // Tablero de Conversión en Tiempo Real (solo si difieren divisas)
               MultiCurrencyConversionCard(
                 originCurrency: _selectedOriginAccount?.currency ?? 'COP',
-                destinationCurrency: _selectedDestBank?.currency ?? 'COP',
+                destinationCurrency: _selectedDestCard?.currency ??
+                    _selectedDestBank?.currency ??
+                    'COP',
                 amount: double.tryParse(_amountController.text.trim()) ?? 0.0,
+                isWithdrawal: false,
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Botón Confirmar Depósito
               SizedBox(

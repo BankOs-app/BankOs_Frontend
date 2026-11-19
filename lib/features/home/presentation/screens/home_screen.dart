@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/localization/app_locale_provider.dart';
+import '../../../../core/widgets/bank_brand_logo.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../operations/domain/entities/external_origin_account_entity.dart';
 import '../../../operations/domain/entities/registered_bank_entity.dart';
 import '../../../operations/presentation/providers/operations_providers.dart';
@@ -39,6 +41,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final lang = ref.watch(localeNotifierProvider);
+    final operationsState = ref.watch(operationsNotifierProvider);
+    final currentBank = operationsState.currentBank;
+    final activeNavColor = currentBank.primaryColor == Colors.black
+        ? const Color(0xFF0F172A)
+        : currentBank.primaryColor;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -79,16 +86,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     index: 0,
                     icon: Icons.home_rounded,
                     label: Tr.home(lang),
+                    activeColor: activeNavColor,
                   ),
                   _buildNavItem(
                     index: 1,
                     icon: Icons.access_time_rounded,
                     label: Tr.history(lang),
+                    activeColor: activeNavColor,
                   ),
                   _buildNavItem(
                     index: 2,
                     icon: Icons.person_outline_rounded,
                     label: Tr.profile(lang),
+                    activeColor: activeNavColor,
                   ),
                 ],
               ),
@@ -103,6 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required int index,
     required IconData icon,
     required String label,
+    Color activeColor = const Color(0xFF2563EB),
   }) {
     final isSelected = _currentNavIndex == index;
     return GestureDetector(
@@ -116,7 +127,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Icon(
               icon,
               color: isSelected
-                  ? const Color(0xFF2563EB)
+                  ? activeColor
                   : const Color(0xFF94A3B8),
               size: 24,
             ),
@@ -125,7 +136,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               label,
               style: TextStyle(
                 color: isSelected
-                    ? const Color(0xFF2563EB)
+                    ? activeColor
                     : const Color(0xFF94A3B8),
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -147,25 +158,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final activeAccounts = operationsState.activeTenantAccounts;
     final history = operationsState.activeTenantHistory.take(4).toList();
 
+    final authState = ref.watch(authNotifierProvider);
+    final user = authState.user;
+    final rawName = user?.name?.trim();
+    final String displayName;
+    if (rawName != null &&
+        rawName.isNotEmpty &&
+        rawName != '[Nombre]' &&
+        rawName != 'BankOS User' &&
+        rawName != 'Usuario BankOS') {
+      displayName = rawName;
+    } else if (user?.email != null && user!.email.isNotEmpty) {
+      final part = user.email.split('@')[0];
+      displayName = part.length > 1
+          ? (part.substring(0, 1).toUpperCase() + part.substring(1))
+          : 'Alejandro Morales';
+    } else {
+      displayName = 'Alejandro Morales';
+    }
+
     return SafeArea(
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ==============================================================
-            // 1. CABECERA SUPERIOR AZUL MARINO (#031F48) - Figma Mockup
+            // 1. CABECERA SUPERIOR REACTIVA A LA IDENTIDAD DEL BANCO
             // ==============================================================
             Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0xFF031633),
-                    Color(0xFF0A2558),
+                    currentBank.isGlobal
+                        ? const Color(0xFF031633)
+                        : currentBank.primaryColor,
+                    currentBank.isGlobal
+                        ? const Color(0xFF0A2558)
+                        : (currentBank.primaryColor == Colors.black
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFF0F172A)),
                   ],
                 ),
-                borderRadius: BorderRadius.vertical(
+                borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(28),
                 ),
               ),
@@ -204,7 +240,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                Tr.greeting(lang, '[Nombre]'),
+                                Tr.greeting(lang, displayName),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 18,
@@ -277,17 +313,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.16),
+                          color: (currentBank.isGlobal
+                                  ? Colors.white
+                                  : currentBank.accentColor)
+                              .withValues(alpha: 0.4),
+                          width: 1.2,
                         ),
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            operationsState.isViewingGlobal
-                                ? Icons.public_rounded
-                                : Icons.account_balance_rounded,
-                            color: Colors.white70,
-                            size: 18,
+                          BankBrandLogo(
+                            bank: currentBank,
+                            size: 22,
+                            showName: false,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -295,7 +333,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  operationsState.isViewingGlobal
+                                  currentBank.isGlobal
                                       ? 'BankOs Global (USD)'
                                       : '${currentBank.name} (${currentBank.currency})',
                                   style: const TextStyle(
@@ -306,13 +344,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  operationsState.isViewingGlobal
+                                  currentBank.isGlobal
                                       ? Tr.globalHub(lang)
                                       : Tr.titularAccount(
                                           lang, currentBank.currency),
-                                  style: const TextStyle(
-                                    color: Color(0xFF94A3B8),
+                                  style: TextStyle(
+                                    color: (currentBank.isGlobal
+                                            ? const Color(0xFF94A3B8)
+                                            : currentBank.accentColor)
+                                        .withValues(alpha: 0.95),
                                     fontSize: 11,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -332,9 +374,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Colors.white.withValues(alpha: 0.18),
-                              foregroundColor: Colors.white,
+                              backgroundColor: currentBank.isGlobal
+                                  ? Colors.white.withValues(alpha: 0.18)
+                                  : currentBank.accentColor,
+                              foregroundColor: (currentBank.isGlobal ||
+                                      currentBank.accentColor.computeLuminance() < 0.5)
+                                  ? Colors.white
+                                  : Colors.black,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 6),
                               elevation: 0,
@@ -350,9 +396,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                   const SizedBox(height: 14),
 
-                  // Tarjeta de Saldo Principal (Figma Navy Card con detalle geométrico)
+                  // Tarjeta de Saldo Principal (Diseño Físico 3D con Chip, Contactless y Brillo)
                   SizedBox(
-                    height: 155,
+                    height: 180,
                     child: PageView(
                       controller: _cardPageController,
                       onPageChanged: (index) {
@@ -363,6 +409,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         _buildFigmaBalanceCard(
                           lang: lang,
+                          currentBank: currentBank,
                           balance: operationsState.formattedActiveBalance,
                           accountNumber: operationsState
                                   .primaryCard?.maskedCardNumber ??
@@ -373,12 +420,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         if (activeCards.length > 1)
                           _buildFigmaBalanceCard(
                             lang: lang,
+                            currentBank: currentBank,
                             balance: activeCards[1].formattedBalance,
                             accountNumber: activeCards[1].maskedCardNumber,
                           )
                         else if (activeAccounts.length > 1)
                           _buildFigmaBalanceCard(
                             lang: lang,
+                            currentBank: currentBank,
                             balance: activeAccounts[1].formattedBalance,
                             accountNumber: activeAccounts[1].maskedAccountNumber,
                           ),
@@ -446,6 +495,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: _buildFigmaActionButton(
                       icon: Icons.add_circle_outline_rounded,
                       label: Tr.deposit(lang),
+                      bgColor: currentBank.accentColor.withValues(alpha: 0.15),
+                      iconColor: currentBank.primaryColor == Colors.black
+                          ? const Color(0xFF0F172A)
+                          : currentBank.primaryColor,
                       onTap: () => context.go('/deposit'),
                     ),
                   ),
@@ -454,6 +507,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: _buildFigmaActionButton(
                       icon: Icons.remove_circle_outline_rounded,
                       label: Tr.withdraw(lang),
+                      bgColor: currentBank.accentColor.withValues(alpha: 0.15),
+                      iconColor: currentBank.primaryColor == Colors.black
+                          ? const Color(0xFF0F172A)
+                          : currentBank.primaryColor,
                       onTap: () => context.go('/withdraw'),
                     ),
                   ),
@@ -556,112 +613,280 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // SUBCOMPONENTES FIGMA
   // =========================================================================
 
-  /// Tarjeta de Saldo Figma (Fondo Azul Noche con forma curva en la esquina)
+  /// Chip EMV Metálico Dorado (Microprocesador de tarjeta física real)
+  Widget _buildEmvChip() {
+    return Container(
+      width: 28,
+      height: 20,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFDE047), Color(0xFFCA8A04)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: const Color(0xFFEAB308), width: 0.8),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            left: 9,
+            top: 0,
+            bottom: 0,
+            child: Container(width: 1, color: Colors.black26),
+          ),
+          Positioned(
+            left: 18,
+            top: 0,
+            bottom: 0,
+            child: Container(width: 1, color: Colors.black26),
+          ),
+          Positioned(
+            top: 9,
+            left: 0,
+            right: 0,
+            child: Container(height: 1, color: Colors.black26),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Tarjeta de Saldo Física 3D (Gradiente Reactivo al Banco, Chip, Contactless y Brillo Glossy)
   Widget _buildFigmaBalanceCard({
     required AppLanguage lang,
+    required RegisteredBankEntity currentBank,
     required String balance,
     required String accountNumber,
   }) {
+    final slug = currentBank.code.toLowerCase();
+    final List<Color> gradientColors;
+    if (slug.contains('nu')) {
+      gradientColors = [const Color(0xFF820AD1), const Color(0xFF4C0677)];
+    } else if (slug.contains('lombia')) {
+      gradientColors = [const Color(0xFF0F172A), const Color(0xFF1E293B)];
+    } else if (slug.contains('santander')) {
+      gradientColors = [const Color(0xFFEC0000), const Color(0xFF990000)];
+    } else if (slug.contains('bogota')) {
+      gradientColors = [const Color(0xFF002D72), const Color(0xFF001944)];
+    } else if (currentBank.isGlobal) {
+      gradientColors = [const Color(0xFF031633), const Color(0xFF0A2558)];
+    } else {
+      gradientColors = [
+        currentBank.primaryColor,
+        currentBank.primaryColor.withValues(alpha: 0.85),
+      ];
+    }
+
+    final accentGlow = currentBank.isGlobal
+        ? const Color(0xFF0052FF)
+        : (currentBank.primaryColor == Colors.black
+            ? currentBank.accentColor
+            : currentBank.primaryColor);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 2.0),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F2C59),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradientColors,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: (currentBank.isGlobal ? Colors.white : currentBank.accentColor)
+              .withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accentGlow.withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         child: Stack(
           children: [
-            // Círculo translúcido curva inferior derecha (Figma)
+            // Brillo diagonal 3D (Glossy Glass Sheen)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.22),
+                      Colors.white.withValues(alpha: 0.05),
+                      Colors.transparent,
+                      Colors.white.withValues(alpha: 0.10),
+                    ],
+                    stops: const [0.0, 0.35, 0.65, 1.0],
+                  ),
+                ),
+              ),
+            ),
+
+            // Esfera de luz decorativa en esquina
             Positioned(
               right: -30,
               bottom: -40,
               child: Container(
-                width: 140,
-                height: 140,
+                width: 150,
+                height: 150,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF0284C7).withValues(alpha: 0.22),
+                  color: (currentBank.isGlobal
+                          ? Colors.white
+                          : currentBank.accentColor)
+                      .withValues(alpha: 0.18),
                 ),
               ),
             ),
+
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.fromLTRB(18.0, 14.0, 18.0, 14.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Fila Superior: Logo del banco + Chip EMV + Contactless
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        Tr.availableBalance(lang),
-                        style: const TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        children: [
+                          BankBrandLogo(
+                            bank: currentBank,
+                            size: 22,
+                            showName: false,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            currentBank.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isBalanceVisible = !_isBalanceVisible;
-                          });
-                        },
-                        child: Icon(
-                          _isBalanceVisible
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                          color: Colors.white70,
-                          size: 20,
+                      Row(
+                        children: [
+                          _buildEmvChip(),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.contactless_rounded,
+                            color: Colors.white70,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  // Fila Central: Dinero actual + Saldo grande en negrita
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            Tr.availableBalance(lang),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isBalanceVisible = !_isBalanceVisible;
+                              });
+                            },
+                            child: Icon(
+                              _isBalanceVisible
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: Colors.white70,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _isBalanceVisible ? balance : '••••••••',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      _isBalanceVisible ? balance : '••••••••',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
+
+                  // Fila Inferior: Número de Tarjeta / Cuenta con copiar
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Flexible(
-                        child: Text(
-                          '${Tr.savingsAccount(lang)} $accountNumber',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: accountNumber));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(lang == AppLanguage.es
-                                  ? 'Número de cuenta copiado.'
-                                  : 'Account number copied.'),
-                              duration: const Duration(seconds: 1),
-                              behavior: SnackBarBehavior.floating,
+                      Row(
+                        children: [
+                          Text(
+                            '${Tr.savingsAccount(lang)} $accountNumber',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
                             ),
-                          );
-                        },
-                        child: const Icon(
-                          Icons.copy_rounded,
-                          color: Colors.white70,
-                          size: 14,
+                          ),
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: accountNumber));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(lang == AppLanguage.es
+                                      ? 'Número de cuenta copiado.'
+                                      : 'Account number copied.'),
+                                  duration: const Duration(seconds: 1),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            child: const Icon(
+                              Icons.copy_rounded,
+                              color: Colors.white70,
+                              size: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          currentBank.currency,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -680,6 +905,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    Color? iconColor,
+    Color? bgColor,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -691,12 +918,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              color: bgColor ?? const Color(0xFFEFF6FF),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
               icon,
-              color: const Color(0xFF2563EB),
+              color: iconColor ?? const Color(0xFF2563EB),
               size: 22,
             ),
           ),
@@ -829,6 +1056,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
     return orig.formattedBalance;
+  }
+
+  bool _userHasAccountInBank(RegisteredBankEntity bank, OperationsState ops) {
+    if (bank.id == ops.currentBank.id) return true;
+    return ops.accounts.any((a) =>
+        a.tenantId == bank.tenantId ||
+        (bank.code.isNotEmpty &&
+            a.tenantId.toLowerCase().contains(bank.code.toLowerCase())));
   }
 
   void _showAccountSwitcherDialog(BuildContext context, AppLanguage lang) {
@@ -1109,19 +1344,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           child: Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: bank.currency == 'USD'
-                                      ? const Color(0xFF1E3A8A)
-                                      : const Color(0xFF065F46),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.account_balance_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
+                              BankBrandLogo(
+                                bank: bank,
+                                size: 28,
+                                showName: false,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -1147,14 +1373,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 6, vertical: 1.5),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFF1F5F9),
+                                            color: bank.accentColor.withValues(alpha: 0.15),
                                             borderRadius:
                                                 BorderRadius.circular(4),
                                           ),
                                           child: Text(
                                             bank.currency,
-                                            style: const TextStyle(
-                                              color: Color(0xFF0F172A),
+                                            style: TextStyle(
+                                              color: bank.primaryColor == Colors.black ? const Color(0xFF1E293B) : bank.primaryColor,
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -1196,7 +1422,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     ),
                                   ),
                                 )
-                              else
+                              else if (_userHasAccountInBank(bank, operationsState))
                                 ElevatedButton(
                                   onPressed: () {
                                     ref
@@ -1208,17 +1434,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       SnackBar(
                                         content: Text(
                                           isEs
-                                              ? 'Sesión cambiada a ${bank.name}. Has ingresado a tu cuenta en ${bank.currency}.'
+                                              ? 'Sesión cambiada a ${bank.name} (${bank.currency}).'
                                               : 'Switched session to ${bank.name} (${bank.currency}).',
                                         ),
-                                        backgroundColor:
-                                            const Color(0xFF2563EB),
+                                        backgroundColor: bank.primaryColor == Colors.black
+                                            ? const Color(0xFF1E293B)
+                                            : bank.primaryColor,
                                         behavior: SnackBarBehavior.floating,
                                       ),
                                     );
                                   },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF0F172A),
+                                    backgroundColor: bank.primaryColor == Colors.black
+                                        ? const Color(0xFF0F172A)
+                                        : bank.primaryColor,
                                     foregroundColor: Colors.white,
                                     elevation: 0,
                                     padding: const EdgeInsets.symmetric(
@@ -1233,11 +1462,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold),
                                   ),
+                                )
+                              else
+                                OutlinedButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    ref
+                                        .read(operationsNotifierProvider
+                                            .notifier)
+                                        .switchActiveBank(bank);
+                                    context.go('/register');
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: bank.primaryColor == Colors.black
+                                        ? const Color(0xFF0F172A)
+                                        : bank.primaryColor,
+                                    side: BorderSide(
+                                      color: bank.primaryColor == Colors.black
+                                          ? const Color(0xFF0F172A)
+                                          : bank.primaryColor,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    isEs ? '+ Abrir Cuenta' : '+ Open Account',
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                             ],
                           ),
                         );
                       },
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          context.go('/select-tenant');
+                        },
+                        icon: const Icon(Icons.account_balance_rounded, size: 16),
+                        label: Text(
+                          isEs
+                              ? 'Ver Portal Completo de Entidades'
+                              : 'View Full Banks Portal',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 12),

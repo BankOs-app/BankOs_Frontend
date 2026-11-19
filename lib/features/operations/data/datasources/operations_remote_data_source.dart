@@ -1,3 +1,6 @@
+import 'package:dio/dio.dart';
+
+import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/bank_account_entity.dart';
 import '../../domain/entities/bank_card_entity.dart';
@@ -10,6 +13,7 @@ abstract class OperationsRemoteDataSource {
   Future<List<OperationRecordEntity>> getHistory();
   Future<List<RegisteredBankEntity>> getBanks();
   Future<List<BankCardEntity>> getCards();
+  Future<void> registerTenant(RegisteredBankEntity bank);
 
   Future<OperationRecordEntity> deposit({
     required String accountId,
@@ -56,6 +60,13 @@ abstract class OperationsRemoteDataSource {
     required double amount,
     String? concept,
   });
+
+  Future<void> updateBankBranding({
+    required String slug,
+    required String primaryColor,
+    required String accentColor,
+    required String logoUrl,
+  });
 }
 
 class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
@@ -63,90 +74,65 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
 
   OperationsRemoteDataSourceImpl({required this.dioClient});
 
+  // Cuentas locales de inicialización y contingencia
   final List<BankAccountEntity> _accounts = [
     const BankAccountEntity(
-      id: 'acc_bankos_global',
-      accountNumber: '8820',
-      accountType: 'Cuenta Global BankOs',
-      balance: 5450.00,
+      id: 'acc_01',
+      accountNumber: '7007007001',
+      accountType: 'Cuenta Débito',
+      balance: 8000000.00,
+      currency: 'COP',
+      isActive: true,
+      tenantId: 'tenant_banco_lombia',
+    ),
+    const BankAccountEntity(
+      id: 'acc_bogota_01',
+      accountNumber: '1001001001',
+      accountType: 'Cuenta Débito',
+      balance: 5000000.00,
+      currency: 'COP',
+      isActive: true,
+      tenantId: 'tenant_banco_bogota',
+    ),
+    const BankAccountEntity(
+      id: 'acc_bogota_02',
+      accountNumber: '1001001002',
+      accountType: 'Cuenta en Dólares (USD)',
+      balance: 1500.00,
+      currency: 'USD',
+      isActive: true,
+      tenantId: 'tenant_banco_bogota',
+    ),
+    const BankAccountEntity(
+      id: 'acc_santander_01',
+      accountNumber: '9009009001',
+      accountType: 'Cuenta en Dólares (USD)',
+      balance: 3500.00,
+      currency: 'USD',
+      isActive: true,
+      tenantId: 'tenant_banco_santander',
+    ),
+    const BankAccountEntity(
+      id: 'acc_nu_01',
+      accountNumber: '8008008001',
+      accountType: 'Cuenta Débito',
+      balance: 3500000.00,
+      currency: 'COP',
+      isActive: true,
+      tenantId: 'tenant_banco_nu',
+    ),
+    const BankAccountEntity(
+      id: 'acc_bankos_01',
+      accountNumber: '1001001000',
+      accountType: 'Cuenta Multidivisa Global (USD)',
+      balance: 150000.00,
       currency: 'USD',
       isActive: true,
       tenantId: 'tenant_bankos_global',
     ),
-    const BankAccountEntity(
-      id: 'acc_01',
-      accountNumber: '4829',
-      accountType: 'Cuenta Débito',
-      balance: 24550.00,
-      currency: 'COP',
-      isActive: true,
-      tenantId: 'tenant_bancolombia',
-    ),
-    const BankAccountEntity(
-      id: 'acc_01_b',
-      accountNumber: '1042',
-      accountType: 'Cuenta Débito',
-      balance: 5000.00,
-      currency: 'COP',
-      isActive: true,
-      tenantId: 'tenant_bancolombia',
-    ),
-    const BankAccountEntity(
-      id: 'acc_02',
-      accountNumber: '8812',
-      accountType: 'Cuenta Débito',
-      balance: 8320.00,
-      currency: 'COP',
-      isActive: true,
-      tenantId: 'tenant_davivienda',
-    ),
-    const BankAccountEntity(
-      id: 'acc_02_b',
-      accountNumber: '9001',
-      accountType: 'Cuenta Débito',
-      balance: 12000.00,
-      currency: 'COP',
-      isActive: true,
-      tenantId: 'tenant_davivienda',
-    ),
-    const BankAccountEntity(
-      id: 'acc_03',
-      accountNumber: '1184',
-      accountType: 'Cuenta en Dólares (USD)',
-      balance: 1250.00,
-      currency: 'USD',
-      isActive: true,
-      tenantId: 'tenant_chase',
-    ),
-    const BankAccountEntity(
-      id: 'acc_04',
-      accountNumber: '3350',
-      accountType: 'Cuenta Débito',
-      balance: 3400.00,
-      currency: 'COP',
-      isActive: true,
-      tenantId: 'tenant_bogota',
-    ),
-    const BankAccountEntity(
-      id: 'acc_05',
-      accountNumber: '7721',
-      accountType: 'Cuenta Débito',
-      balance: 1850.00,
-      currency: 'COP',
-      isActive: true,
-      tenantId: 'tenant_bbva',
-    ),
-    const BankAccountEntity(
-      id: 'acc_06_eur',
-      accountNumber: '9241',
-      accountType: 'Cuenta en Euros (EUR)',
-      balance: 1450.00,
-      currency: 'EUR',
-      isActive: true,
-      tenantId: 'tenant_santander_eur',
-    ),
   ];
 
+  // Instituciones registradas iniciales
   final List<RegisteredBankEntity> _banks = [
     const RegisteredBankEntity(
       id: 'bank_bankos_global',
@@ -155,380 +141,552 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       tenantId: 'tenant_bankos_global',
       currency: 'USD',
       isGlobal: true,
+      primaryColorHex: '#031633',
+      accentColorHex: '#6DA5FA',
+      logoKey: 'bankos',
     ),
     const RegisteredBankEntity(
-      id: 'bank_bancolombia',
+      id: '4f2a0415-2697-42d7-878d-ab67a1f6a657',
       name: 'Bancolombia',
-      code: '007',
-      tenantId: 'tenant_bancolombia',
+      code: 'banco-lombia',
+      tenantId: 'tenant_banco_lombia',
       currency: 'COP',
+      primaryColorHex: '#000000',
+      accentColorHex: '#FDDA24',
+      logoKey: 'bancolombia',
     ),
     const RegisteredBankEntity(
-      id: 'bank_davivienda',
-      name: 'Davivienda',
-      code: '051',
-      tenantId: 'tenant_davivienda',
-      currency: 'COP',
-    ),
-    const RegisteredBankEntity(
-      id: 'bank_chase',
-      name: 'Chase Bank (EE.UU.)',
-      code: '840',
-      tenantId: 'tenant_chase',
-      currency: 'USD',
-    ),
-    const RegisteredBankEntity(
-      id: 'bank_bogota',
+      id: '11111111-1111-4111-8111-111111111111',
       name: 'Banco de Bogotá',
-      code: '001',
-      tenantId: 'tenant_bogota',
+      code: 'banco-bogota',
+      tenantId: 'tenant_banco_bogota',
       currency: 'COP',
+      primaryColorHex: '#002D72',
+      accentColorHex: '#004BB1',
+      logoKey: 'banco-bogota',
     ),
     const RegisteredBankEntity(
-      id: 'bank_bbva',
-      name: 'BBVA',
-      code: '013',
-      tenantId: 'tenant_bbva',
-      currency: 'COP',
+      id: '22222222-2222-4222-8222-222222222222',
+      name: 'Banco Santander',
+      code: 'banco-santander',
+      tenantId: 'tenant_banco_santander',
+      currency: 'USD',
+      primaryColorHex: '#EC0000',
+      accentColorHex: '#CC0000',
+      logoKey: 'banco-santander',
     ),
     const RegisteredBankEntity(
-      id: 'bank_santander',
-      name: 'Banco Santander (España)',
-      code: '049',
-      tenantId: 'tenant_santander_eur',
-      currency: 'EUR',
+      id: '47130a5f-3368-4a0b-ab77-0982b6a07a96',
+      name: 'Banco de NU',
+      code: 'banco-nu',
+      tenantId: 'tenant_banco_nu',
+      currency: 'COP',
+      primaryColorHex: '#820AD1',
+      accentColorHex: '#9B3FE6',
+      logoKey: 'banco-nu',
+    ),
+    const RegisteredBankEntity(
+      id: 'e3a4a8cc-5551-400b-beb5-6b5ced30c7e0',
+      name: 'Banco de Occidente',
+      code: 'banco-occidente',
+      tenantId: 'tenant_banco_occidente',
+      currency: 'COP',
+      primaryColorHex: '#0A2540',
+      accentColorHex: '#0052FF',
+      logoKey: 'bankos',
     ),
   ];
 
   late final List<BankCardEntity> _cards = [
-    // Cuenta Global BankOs (USD) - Débito y Crédito
-    const BankCardEntity(
-      id: 'card_bankos_01',
-      bankId: 'bank_bankos_global',
-      bankName: 'Cuenta Global BankOs',
-      cardNumber: '8820',
-      cardHolder: 'Carlos Gómez',
-      cardType: BankCardType.debit,
-      availableBalance: 5450.00,
-      currency: 'USD',
-      accountId: 'acc_bankos_global',
-    ),
-    const BankCardEntity(
-      id: 'card_bankos_02',
-      bankId: 'bank_bankos_global',
-      bankName: 'Cuenta Global BankOs',
-      cardNumber: '3301',
-      cardHolder: 'Carlos Gómez',
-      cardType: BankCardType.credit,
-      availableBalance: 10000.00,
-      currency: 'USD',
-      accountId: 'acc_bankos_global',
-    ),
-
-    // Bancolombia (COP) - Débito y Crédito
     const BankCardEntity(
       id: 'card_col_01',
-      bankId: 'bank_bancolombia',
+      bankId: '4f2a0415-2697-42d7-878d-ab67a1f6a657',
       bankName: 'Bancolombia',
-      cardNumber: '4829',
-      cardHolder: 'Carlos Gómez',
+      cardNumber: '7001',
+      cardHolder: 'Alejandro Morales',
       cardType: BankCardType.debit,
-      availableBalance: 24550.00,
+      availableBalance: 8000000.00,
       currency: 'COP',
       accountId: 'acc_01',
     ),
     const BankCardEntity(
-      id: 'card_col_03',
-      bankId: 'bank_bancolombia',
-      bankName: 'Bancolombia',
-      cardNumber: '1042',
-      cardHolder: 'Carlos Gómez',
-      cardType: BankCardType.credit,
-      availableBalance: 5000.00,
-      currency: 'COP',
-      accountId: 'acc_01_b',
-    ),
-
-    // Davivienda (COP) - Débito y Crédito
-    const BankCardEntity(
-      id: 'card_davi_01',
-      bankId: 'bank_davivienda',
-      bankName: 'Davivienda',
-      cardNumber: '8812',
+      id: 'card_bogota_01',
+      bankId: '11111111-1111-4111-8111-111111111111',
+      bankName: 'Banco de Bogotá',
+      cardNumber: '1001',
       cardHolder: 'Carlos Gómez',
       cardType: BankCardType.debit,
-      availableBalance: 8320.00,
+      availableBalance: 5000000.00,
       currency: 'COP',
-      accountId: 'acc_02',
+      accountId: 'acc_bogota_01',
     ),
     const BankCardEntity(
-      id: 'card_davi_03',
-      bankId: 'bank_davivienda',
-      bankName: 'Davivienda',
-      cardNumber: '9001',
+      id: 'card_bogota_02',
+      bankId: '11111111-1111-4111-8111-111111111111',
+      bankName: 'Banco de Bogotá',
+      cardNumber: '1002',
       cardHolder: 'Carlos Gómez',
       cardType: BankCardType.credit,
-      availableBalance: 12000.00,
-      currency: 'COP',
-      accountId: 'acc_02_b',
-    ),
-
-    // Chase Bank (USD) - Débito y Crédito
-    const BankCardEntity(
-      id: 'card_chase_01',
-      bankId: 'bank_chase',
-      bankName: 'Chase Bank (EE.UU.)',
-      cardNumber: '1184',
-      cardHolder: 'Carlos Gómez',
-      cardType: BankCardType.debit,
-      availableBalance: 1250.00,
+      availableBalance: 1500.00,
       currency: 'USD',
-      accountId: 'acc_03',
+      accountId: 'acc_bogota_02',
     ),
-    const BankCardEntity(
-      id: 'card_chase_03',
-      bankId: 'bank_chase',
-      bankName: 'Chase Bank (EE.UU.)',
-      cardNumber: '7729',
-      cardHolder: 'Carlos Gómez',
-      cardType: BankCardType.credit,
-      availableBalance: 3500.00,
-      currency: 'USD',
-      accountId: 'acc_03',
-    ),
-
-    // Banco Santander España (EUR) - Débito y Crédito
     const BankCardEntity(
       id: 'card_sant_01',
-      bankId: 'bank_santander',
-      bankName: 'Banco Santander (España)',
-      cardNumber: '9241',
-      cardHolder: 'Carlos Gómez',
+      bankId: '22222222-2222-4222-8222-222222222222',
+      bankName: 'Banco Santander',
+      cardNumber: '9001',
+      cardHolder: 'John Smith',
       cardType: BankCardType.debit,
-      availableBalance: 1450.00,
-      currency: 'EUR',
-      accountId: 'acc_06_eur',
+      availableBalance: 3500.00,
+      currency: 'USD',
+      accountId: 'acc_santander_01',
     ),
     const BankCardEntity(
-      id: 'card_sant_03',
-      bankId: 'bank_santander',
-      bankName: 'Banco Santander (España)',
-      cardNumber: '6120',
-      cardHolder: 'Carlos Gómez',
-      cardType: BankCardType.credit,
-      availableBalance: 2500.00,
-      currency: 'EUR',
-      accountId: 'acc_06_eur',
-    ),
-
-    // Banco de Bogotá (COP) - Débito y Crédito
-    const BankCardEntity(
-      id: 'card_bog_01',
-      bankId: 'bank_bogota',
-      bankName: 'Banco de Bogotá',
-      cardNumber: '3350',
-      cardHolder: 'Carlos Gómez',
+      id: 'card_nu_01',
+      bankId: '47130a5f-3368-4a0b-ab77-0982b6a07a96',
+      bankName: 'Banco de NU',
+      cardNumber: '8001',
+      cardHolder: 'Catalina Restrepo',
       cardType: BankCardType.debit,
-      availableBalance: 3400.00,
+      availableBalance: 3500000.00,
       currency: 'COP',
-      accountId: 'acc_04',
-    ),
-    const BankCardEntity(
-      id: 'card_bog_02',
-      bankId: 'bank_bogota',
-      bankName: 'Banco de Bogotá',
-      cardNumber: '8910',
-      cardHolder: 'Carlos Gómez',
-      cardType: BankCardType.credit,
-      availableBalance: 6000.00,
-      currency: 'COP',
-      accountId: 'acc_04',
-    ),
-
-    // BBVA (COP) - Débito y Crédito
-    const BankCardEntity(
-      id: 'card_bbva_01',
-      bankId: 'bank_bbva',
-      bankName: 'BBVA',
-      cardNumber: '7721',
-      cardHolder: 'Carlos Gómez',
-      cardType: BankCardType.debit,
-      availableBalance: 1850.00,
-      currency: 'COP',
-      accountId: 'acc_05',
-    ),
-    const BankCardEntity(
-      id: 'card_bbva_02',
-      bankId: 'bank_bbva',
-      bankName: 'BBVA',
-      cardNumber: '4412',
-      cardHolder: 'Carlos Gómez',
-      cardType: BankCardType.credit,
-      availableBalance: 3200.00,
-      currency: 'COP',
-      accountId: 'acc_05',
+      accountId: 'acc_nu_01',
     ),
   ];
 
   final List<OperationRecordEntity> _history = [
-    // Cuenta Global BankOs History
+    // Cuenta Global BankOs
     OperationRecordEntity(
-      id: 'op_bos_001',
+      id: 'tx_bos_01',
       type: OperationType.deposit,
-      title: 'Consignación a Cuenta Global',
-      description: 'Abono desde cuenta personal Bancolombia (COP)',
-      amount: 500.00,
+      title: 'Capitalización BaaS Multi-tenant',
+      description: 'Aporte de liquidez centralizada para operaciones interbancarias',
+      amount: 50000.00,
       currency: 'USD',
-      fee: 0.0,
+      timestamp: DateTime.now().subtract(const Duration(minutes: 45)),
+      originAccountId: 'acc_bankos_01',
+    ),
+    OperationRecordEntity(
+      id: 'tx_bos_02',
+      type: OperationType.internalTransfer,
+      title: 'Liquidación Compensación ACH',
+      description: 'Transferencia de compensación neta hacia Banco de Bogotá',
+      amount: 12500.00,
+      currency: 'USD',
+      timestamp: DateTime.now().subtract(const Duration(hours: 3)),
+      originAccountId: 'acc_bankos_01',
+      destinationAccountId: 'acc_bogota_02',
+    ),
+    OperationRecordEntity(
+      id: 'tx_bos_03',
+      type: OperationType.deposit,
+      title: 'Recarga Gateway API Developer',
+      description: 'Cobro de facturación de microservicios BaaS API',
+      amount: 8400.00,
+      currency: 'USD',
+      timestamp: DateTime.now().subtract(const Duration(hours: 7)),
+      originAccountId: 'acc_bankos_01',
+    ),
+    OperationRecordEntity(
+      id: 'tx_bos_04',
+      type: OperationType.withdrawal,
+      title: 'Retiro Arbitraje Forex',
+      description: 'Desembolso hacia tesorería internacional',
+      amount: 3200.00,
+      currency: 'USD',
+      timestamp: DateTime.now().subtract(const Duration(days: 1)),
+      originAccountId: 'acc_bankos_01',
+    ),
+    // Bancolombia
+    OperationRecordEntity(
+      id: 'tx_col_01',
+      type: OperationType.deposit,
+      title: 'Depósito Nómina Corporativa',
+      description: 'Abono quincenal nómina empresarial Tech Corp',
+      amount: 4500000.00,
+      currency: 'COP',
       timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-      originAccountId: 'acc_bankos_global',
+      originAccountId: 'acc_01',
     ),
     OperationRecordEntity(
-      id: 'op_bos_002',
+      id: 'tx_col_02',
       type: OperationType.withdrawal,
-      title: 'Retiro hacia Santander (EUR)',
-      description: 'Traspaso internacional a cuenta personal',
-      amount: 150.00,
-      currency: 'USD',
-      fee: 1.5,
-      timestamp: DateTime.now().subtract(const Duration(hours: 6)),
-      originAccountId: 'acc_bankos_global',
-    ),
-    OperationRecordEntity(
-      id: 'op_bos_003',
-      type: OperationType.internalTransfer,
-      title: 'Transferencia recibida',
-      description: 'Pago global de honorarios',
-      amount: 5100.00,
-      currency: 'USD',
-      fee: 0.0,
-      timestamp: DateTime.now().subtract(const Duration(days: 1)),
-      originAccountId: 'acc_bankos_global',
-    ),
-    // Bancolombia Tenant History
-    OperationRecordEntity(
-      id: 'op_col_001',
-      type: OperationType.deposit,
-      title: 'Supermercado',
-      description: 'Transferencia recibida',
-      amount: 50.00,
+      title: 'Retiro Cajero Automático',
+      description: 'Dispensación en Cajero Servibanca Unicentro',
+      amount: 350000.00,
       currency: 'COP',
-      fee: 0.0,
+      timestamp: DateTime.now().subtract(const Duration(hours: 4)),
+      originAccountId: 'acc_01',
+    ),
+    OperationRecordEntity(
+      id: 'tx_col_03',
+      type: OperationType.internalTransfer,
+      title: 'Transferencia ACH Transfiya',
+      description: 'Envío de dinero interbancario hacia Nu',
+      amount: 1200000.00,
+      currency: 'COP',
+      timestamp: DateTime.now().subtract(const Duration(hours: 12)),
+      originAccountId: 'acc_01',
+      destinationAccountId: 'acc_nu_01',
+    ),
+    OperationRecordEntity(
+      id: 'tx_col_04',
+      type: OperationType.deposit,
+      title: 'Pago Factura Proveedores',
+      description: 'Transferencia recibida por servicios consultoría',
+      amount: 2800000.00,
+      currency: 'COP',
+      timestamp: DateTime.now().subtract(const Duration(days: 1)),
+      originAccountId: 'acc_01',
+    ),
+    // Banco de Bogotá
+    OperationRecordEntity(
+      id: 'tx_bog_01',
+      type: OperationType.deposit,
+      title: 'Liquidación Fondos Fiduciaria',
+      description: 'Rendimiento fiduciario Fiduciaria Bogotá',
+      amount: 3000000.00,
+      currency: 'COP',
       timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      originAccountId: 'acc_01',
+      originAccountId: 'acc_bogota_01',
     ),
     OperationRecordEntity(
-      id: 'op_col_002',
+      id: 'tx_bog_02',
+      type: OperationType.withdrawal,
+      title: 'Retiro Cajero Red AVAL',
+      description: 'Retiro sin tarjeta con token OTP',
+      amount: 200000.00,
+      currency: 'COP',
+      timestamp: DateTime.now().subtract(const Duration(hours: 6)),
+      originAccountId: 'acc_bogota_01',
+    ),
+    OperationRecordEntity(
+      id: 'tx_bog_03',
       type: OperationType.internalTransfer,
-      title: 'Transferencia recibida',
-      description: 'Abono nómina empresarial',
-      amount: 24550.00,
+      title: 'Transferencia Pago Servicios Públicos',
+      description: 'Pago mensual acueducto y energía',
+      amount: 450000.00,
       currency: 'COP',
-      fee: 0.0,
       timestamp: DateTime.now().subtract(const Duration(days: 1)),
-      originAccountId: 'acc_01',
+      originAccountId: 'acc_bogota_01',
     ),
-    // Davivienda Tenant History
+    // Banco Santander
     OperationRecordEntity(
-      id: 'op_dav_001',
-      type: OperationType.withdrawal,
-      title: 'Pago servicios públicos',
-      description: 'Débito automático Enel',
-      amount: 35.00,
-      currency: 'COP',
-      fee: 0.0,
-      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-      originAccountId: 'acc_02',
-    ),
-    OperationRecordEntity(
-      id: 'op_dav_002',
+      id: 'tx_san_01',
       type: OperationType.deposit,
-      title: 'Depósito en Cajero',
-      description: 'Abono en efectivo Davivienda',
-      amount: 8320.00,
-      currency: 'COP',
-      fee: 0.0,
-      timestamp: DateTime.now().subtract(const Duration(days: 2)),
-      originAccountId: 'acc_02',
-    ),
-    // Chase Bank (USD) Tenant History
-    OperationRecordEntity(
-      id: 'op_chase_001',
-      type: OperationType.deposit,
-      title: 'Direct Deposit Payroll',
-      description: 'US Employer Payroll',
-      amount: 1250.00,
+      title: 'Remesa Internacional SWIFT',
+      description: 'Abono directo cuenta internacional Santander',
+      amount: 2500.00,
       currency: 'USD',
-      fee: 0.0,
       timestamp: DateTime.now().subtract(const Duration(hours: 3)),
-      originAccountId: 'acc_03',
+      originAccountId: 'acc_santander_01',
     ),
     OperationRecordEntity(
-      id: 'op_chase_002',
-      type: OperationType.withdrawal,
-      title: 'Amazon Web Services',
-      description: 'Cloud subscription payment',
-      amount: 15.00,
-      currency: 'USD',
-      fee: 0.0,
-      timestamp: DateTime.now().subtract(const Duration(days: 3)),
-      originAccountId: 'acc_03',
-    ),
-    // Banco de Bogotá Tenant History
-    OperationRecordEntity(
-      id: 'op_bog_001',
-      type: OperationType.withdrawal,
-      title: 'Retiro Cajero Red ATH',
-      description: 'Cajero Calle 72',
-      amount: 100.00,
-      currency: 'COP',
-      fee: 0.0,
-      timestamp: DateTime.now().subtract(const Duration(days: 1)),
-      originAccountId: 'acc_04',
-    ),
-    // BBVA Tenant History
-    OperationRecordEntity(
-      id: 'op_bbva_001',
-      type: OperationType.deposit,
-      title: 'Abono Quincenal',
-      description: 'Pago honorarios profesionales',
+      id: 'tx_san_02',
+      type: OperationType.internalTransfer,
+      title: 'Transferencia Comercio Exterior',
+      description: 'Pago proveedor de insumos Miami',
       amount: 850.00,
-      currency: 'COP',
-      fee: 0.0,
-      timestamp: DateTime.now().subtract(const Duration(days: 4)),
-      originAccountId: 'acc_05',
+      currency: 'USD',
+      timestamp: DateTime.now().subtract(const Duration(hours: 8)),
+      originAccountId: 'acc_santander_01',
     ),
-    // Banco Santander Tenant History (EUR)
     OperationRecordEntity(
-      id: 'op_sant_001',
+      id: 'tx_san_03',
+      type: OperationType.withdrawal,
+      title: 'Retiro Cajero Santander Global',
+      description: 'Dispensación efectivo ATM internacional',
+      amount: 300.00,
+      currency: 'USD',
+      timestamp: DateTime.now().subtract(const Duration(days: 2)),
+      originAccountId: 'acc_santander_01',
+    ),
+    // Banco Nu
+    OperationRecordEntity(
+      id: 'tx_nu_01',
       type: OperationType.deposit,
-      title: 'Transferencia SEPA',
-      description: 'Ingreso de fondos en Euros',
-      amount: 1450.00,
-      currency: 'EUR',
-      fee: 0.0,
-      timestamp: DateTime.now().subtract(const Duration(hours: 3)),
-      originAccountId: 'acc_06_eur',
+      title: 'Recarga PSE Cuenta Nu',
+      description: 'Abono instantáneo desde portal de pagos',
+      amount: 1200000.00,
+      currency: 'COP',
+      timestamp: DateTime.now().subtract(const Duration(hours: 1)),
+      originAccountId: 'acc_nu_01',
+    ),
+    OperationRecordEntity(
+      id: 'tx_nu_02',
+      type: OperationType.withdrawal,
+      title: 'Retiro Cajero Servibanca',
+      description: 'Retiro débito cajero aliado Nu',
+      amount: 150000.00,
+      currency: 'COP',
+      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
+      originAccountId: 'acc_nu_01',
+    ),
+    OperationRecordEntity(
+      id: 'tx_nu_03',
+      type: OperationType.deposit,
+      title: 'Rendimiento Cajita Nu 13% E.A.',
+      description: 'Interés diario acreditado en cajita de ahorros',
+      amount: 85000.00,
+      currency: 'COP',
+      timestamp: DateTime.now().subtract(const Duration(hours: 18)),
+      originAccountId: 'acc_nu_01',
     ),
   ];
 
-  @override
-  Future<List<BankAccountEntity>> getAccounts() async {
-    return List.unmodifiable(_accounts);
+  String _resolveTenantSlug(String? accountIdentifier) {
+    if (accountIdentifier != null) {
+      final acc = _accounts.where((a) =>
+          a.id == accountIdentifier ||
+          a.accountNumber == accountIdentifier ||
+          a.accountNumber.endsWith(accountIdentifier)).firstOrNull;
+      if (acc != null) {
+        if (acc.tenantId.contains('santander')) return 'banco-santander';
+        if (acc.tenantId.contains('bogota')) return 'banco-bogota';
+        if (acc.tenantId.contains('nu')) return 'banco-nu';
+        return 'banco-lombia';
+      }
+    }
+    return 'banco-lombia';
+  }
+
+  void _syncCardsWithAccounts() {
+    for (int i = 0; i < _cards.length; i++) {
+      final card = _cards[i];
+      final acc = _accounts.where((a) =>
+          a.id == card.accountId ||
+          a.accountNumber == card.cardNumber ||
+          a.accountNumber.endsWith(card.cardNumber)).firstOrNull;
+      if (acc != null) {
+        _cards[i] = card.copyWith(availableBalance: acc.balance);
+      }
+    }
   }
 
   @override
   Future<List<RegisteredBankEntity>> getBanks() async {
+    try {
+      final response = await dioClient.get(ApiEndpoints.tenants);
+      if (response.statusCode == 200 && response.data != null) {
+        final list = response.data as List<dynamic>;
+        final realBanks = <RegisteredBankEntity>[
+          const RegisteredBankEntity(
+            id: 'bank_bankos_global',
+            name: 'Cuenta Global BankOs',
+            code: 'BOS',
+            tenantId: 'tenant_bankos_global',
+            currency: 'USD',
+            isGlobal: true,
+            primaryColorHex: '#031633',
+            accentColorHex: '#6DA5FA',
+            logoKey: 'bankos',
+          ),
+          ...list.map((item) {
+            final m = item as Map<String, dynamic>;
+            final slug = m['slug'] as String? ?? '';
+            return RegisteredBankEntity(
+              id: m['id'] as String? ?? slug,
+              name: m['name'] as String? ?? slug,
+              code: slug,
+              tenantId: m['schemaName'] as String? ?? slug,
+              currency: m['primaryCurrency'] as String? ?? 'COP',
+              isGlobal: slug.contains('global'),
+              primaryColorHex: m['primaryColor'] as String? ??
+                  (slug.contains('lombia')
+                      ? '#000000'
+                      : (slug.contains('bogota')
+                          ? '#002D72'
+                          : (slug.contains('santander')
+                              ? '#EC0000'
+                              : (slug.contains('nu')
+                                  ? '#820AD1'
+                                  : '#0A2540')))),
+              accentColorHex: m['accentColor'] as String? ??
+                  (slug.contains('lombia')
+                      ? '#FDDA24'
+                      : (slug.contains('bogota')
+                          ? '#004BB1'
+                          : (slug.contains('santander')
+                              ? '#CC0000'
+                              : (slug.contains('nu')
+                                  ? '#9B3FE6'
+                                  : '#0052FF')))),
+              logoKey: m['logoUrl'] as String? ??
+                  (slug.contains('lombia')
+                      ? 'bancolombia'
+                      : (slug.contains('bogota')
+                          ? 'banco-bogota'
+                          : (slug.contains('santander')
+                              ? 'banco-santander'
+                              : (slug.contains('nu')
+                                  ? 'banco-nu'
+                                  : 'bankos')))),
+            );
+          }),
+        ];
+
+        if (realBanks.isNotEmpty) {
+          _banks.clear();
+          _banks.addAll(realBanks);
+          return List.unmodifiable(_banks);
+        }
+      }
+    } catch (_) {}
     return List.unmodifiable(_banks);
   }
 
   @override
+  Future<void> registerTenant(RegisteredBankEntity bank) async {
+    try {
+      await dioClient.post(
+        ApiEndpoints.tenants,
+        data: {
+          'name': bank.name,
+          'slug': bank.code.isNotEmpty ? bank.code : bank.name.toLowerCase().replaceAll(' ', '-'),
+          'primaryCurrency': bank.currency,
+          'maxTransactionAmount': 50000000.0,
+          'feeType': 'FIXED',
+          'feeValue': 2500.0,
+        },
+      );
+    } catch (_) {}
+    if (!_banks.any((b) => b.id == bank.id)) {
+      _banks.add(bank);
+    }
+  }
+
+  @override
+  Future<void> updateBankBranding({
+    required String slug,
+    required String primaryColor,
+    required String accentColor,
+    required String logoUrl,
+  }) async {
+    try {
+      await dioClient.put(
+        '${ApiEndpoints.tenants}/$slug/settings',
+        data: {
+          'primaryCurrency': 'COP',
+          'maxTransactionAmount': '50000000.00',
+          'feeType': 'FIXED',
+          'feeValue': '2500.0000',
+          'primaryColor': primaryColor,
+          'accentColor': accentColor,
+          'logoUrl': logoUrl,
+        },
+      );
+    } catch (_) {}
+
+    // Update in local cache as well
+    for (int i = 0; i < _banks.length; i++) {
+      if (_banks[i].code == slug || _banks[i].id == slug) {
+        _banks[i] = _banks[i].copyWith(
+          primaryColorHex: primaryColor,
+          accentColorHex: accentColor,
+          logoKey: logoUrl,
+        );
+      }
+    }
+  }
+
+  @override
+  Future<List<BankAccountEntity>> getAccounts() async {
+    try {
+      final response = await dioClient.get(ApiEndpoints.myAccounts);
+      if (response.statusCode == 200 && response.data != null) {
+        final list = response.data as List<dynamic>;
+        final realAccounts = list.map((item) {
+          final m = item as Map<String, dynamic>;
+          final curr = m['currency'] as String? ?? 'COP';
+          final accNum = m['accountNumber'] as String? ?? '';
+          final accType = curr == 'COP'
+              ? 'Cuenta Débito'
+              : (curr == 'USD'
+                  ? 'Cuenta en Dólares (USD)'
+                  : 'Cuenta en Euros (EUR)');
+          final bal = double.tryParse(m['balance']?.toString() ?? '0') ?? 0.0;
+          return BankAccountEntity(
+            id: m['id'] as String? ?? accNum,
+            accountNumber: accNum,
+            accountType: accType,
+            balance: bal,
+            currency: curr,
+            isActive: m['status'] == 'ACTIVE',
+            tenantId: m['tenantId'] as String? ?? '',
+          );
+        }).toList();
+
+        if (realAccounts.isNotEmpty) {
+          _accounts.clear();
+          _accounts.addAll(realAccounts);
+          _syncCardsWithAccounts();
+          return List.unmodifiable(_accounts);
+        }
+      }
+    } catch (_) {}
+    return List.unmodifiable(_accounts);
+  }
+
+  @override
   Future<List<BankCardEntity>> getCards() async {
+    _syncCardsWithAccounts();
     return List.unmodifiable(_cards);
   }
 
   @override
   Future<List<OperationRecordEntity>> getHistory() async {
+    try {
+      final slug = _resolveTenantSlug(_accounts.firstOrNull?.id);
+      final response = await dioClient.get(ApiEndpoints.transactions(slug));
+      if (response.statusCode == 200 && response.data != null) {
+        final List<dynamic> list;
+        if (response.data is Map<String, dynamic>) {
+          list = (response.data as Map<String, dynamic>)['data'] as List<dynamic>? ?? [];
+        } else if (response.data is List<dynamic>) {
+          list = response.data as List<dynamic>;
+        } else {
+          list = [];
+        }
+        final realHistory = list.map((item) {
+          final m = item as Map<String, dynamic>;
+          final typeStr = (m['type'] as String? ?? '').toUpperCase();
+          final opType = typeStr == 'DEPOSIT'
+              ? OperationType.deposit
+              : (typeStr == 'WITHDRAWAL'
+                  ? OperationType.withdrawal
+                  : OperationType.internalTransfer);
+          final amt = double.tryParse(m['originalAmount']?.toString() ?? '0') ?? 0.0;
+          final curr = m['originalCurrency'] as String? ?? 'COP';
+          final date = DateTime.tryParse(m['createdAt']?.toString() ?? '') ?? DateTime.now();
+
+          return OperationRecordEntity(
+            id: m['id'] as String? ?? 'tx_${DateTime.now().millisecondsSinceEpoch}',
+            type: opType,
+            title: opType == OperationType.deposit
+                ? 'Depósito bancario'
+                : (opType == OperationType.withdrawal
+                    ? 'Retiro de fondos'
+                    : 'Transferencia realizada'),
+            description: 'Operación registrada en ledger institucional',
+            amount: amt,
+            currency: curr,
+            timestamp: date,
+            originAccountId: (m['sourceAccountId'] ?? m['destinationAccountId'] ?? 'account_main').toString(),
+            destinationAccountId: m['destinationAccountId']?.toString(),
+          );
+        }).toList();
+
+        if (realHistory.isNotEmpty) {
+          for (final r in realHistory.reversed) {
+            if (!_history.any((h) => h.id == r.id)) {
+              _history.insert(0, r);
+            }
+          }
+          return List.unmodifiable(_history);
+        }
+      }
+    } catch (_) {}
     return List.unmodifiable(_history);
   }
 
@@ -538,11 +696,54 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required double amount,
     String? concept,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 250));
-    final idx = _accounts.indexWhere((a) => a.id == accountId);
+    final idx = _accounts.indexWhere((a) => a.id == accountId || a.accountNumber == accountId);
+    final targetAccount = idx != -1 ? _accounts[idx] : null;
+    final accountNumber = targetAccount?.accountNumber ?? accountId;
+    final slug = _resolveTenantSlug(accountId);
+
+    try {
+      final response = await dioClient.post(
+        ApiEndpoints.deposits(slug),
+        data: {
+          'accountNumber': accountNumber,
+          'amount': amount.toStringAsFixed(2),
+        },
+        options: Options(
+          headers: {
+            'Idempotency-Key': DioClient.generateIdempotencyKey(),
+          },
+        ),
+      );
+
+      if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        final newBal = double.tryParse(data['newBalance']?.toString() ?? '') ??
+            ((targetAccount?.balance ?? 0) + amount);
+
+        if (idx != -1 && targetAccount != null) {
+          _accounts[idx] = targetAccount.copyWith(balance: newBal);
+          _syncCardsWithAccounts();
+        }
+
+        final record = OperationRecordEntity(
+          id: data['transactionId'] as String? ?? 'dep_${DateTime.now().millisecondsSinceEpoch}',
+          type: OperationType.deposit,
+          title: 'Depósito a cuenta',
+          description: concept ?? 'Abono de fondos exitoso',
+          amount: amount,
+          currency: data['currency'] as String? ?? targetAccount?.currency ?? 'COP',
+          timestamp: DateTime.now(),
+          originAccountId: accountId,
+        );
+        _history.insert(0, record);
+        return record;
+      }
+    } catch (_) {}
+
     if (idx != -1) {
       final acc = _accounts[idx];
       _accounts[idx] = acc.copyWith(balance: acc.balance + amount);
+      _syncCardsWithAccounts();
 
       final record = OperationRecordEntity(
         id: 'dep_${DateTime.now().millisecondsSinceEpoch}',
@@ -566,7 +767,6 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required double amount,
     String? concept,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 250));
     final cardIdx = _cards.indexWhere((c) => c.id == card.id);
     if (cardIdx != -1) {
       final currentCard = _cards[cardIdx];
@@ -574,36 +774,20 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         throw ArgumentError('El monto debe ser estrictamente positivo.');
       }
 
+      // Ejecutar depósito sobre la cuenta vinculada si existe
+      if (currentCard.accountId.isNotEmpty) {
+        return deposit(accountId: currentCard.accountId, amount: amount, concept: concept);
+      }
+
       _cards[cardIdx] = currentCard.copyWith(
         availableBalance: currentCard.availableBalance + amount,
       );
 
-      // Credit underlying account if exists
-      final accIdx =
-          _accounts.indexWhere((a) => a.id == currentCard.accountId);
-      if (accIdx != -1) {
-        final acc = _accounts[accIdx];
-        _accounts[accIdx] = acc.copyWith(balance: acc.balance + amount);
-      }
-
-      String title;
-      String defaultDesc;
-      switch (currentCard.cardType) {
-        case BankCardType.credit:
-          title = 'Abono Cuenta Crédito';
-          defaultDesc = 'Pago / Liberación de cupo (${currentCard.maskedCardNumber})';
-          break;
-        case BankCardType.debit:
-          title = 'Depósito Cuenta Débito';
-          defaultDesc = 'Abono de fondos propios (${currentCard.maskedCardNumber})';
-          break;
-      }
-
       final record = OperationRecordEntity(
         id: 'dep_${DateTime.now().millisecondsSinceEpoch}',
         type: OperationType.deposit,
-        title: '$title - ${currentCard.bankName}',
-        description: concept != null && concept.isNotEmpty ? concept : defaultDesc,
+        title: 'Depósito Cuenta ${currentCard.bankName}',
+        description: concept ?? 'Abono de fondos exitoso (${currentCard.maskedCardNumber})',
         amount: amount,
         currency: currentCard.currency,
         timestamp: DateTime.now(),
@@ -621,17 +805,63 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required double amount,
     String? concept,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 250));
-    final idx = _accounts.indexWhere((a) => a.id == accountId);
+    final idx = _accounts.indexWhere((a) => a.id == accountId || a.accountNumber == accountId);
+    final targetAccount = idx != -1 ? _accounts[idx] : null;
+    final accountNumber = targetAccount?.accountNumber ?? accountId;
+    final slug = _resolveTenantSlug(accountId);
+
+    try {
+      final response = await dioClient.post(
+        ApiEndpoints.withdrawals(slug),
+        data: {
+          'accountNumber': accountNumber,
+          'amount': amount.toStringAsFixed(2),
+        },
+        options: Options(
+          headers: {
+            'Idempotency-Key': DioClient.generateIdempotencyKey(),
+          },
+        ),
+      );
+
+      if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        final newBal = double.tryParse(data['newBalance']?.toString() ?? '') ??
+            ((targetAccount?.balance ?? 0) - amount);
+
+        if (idx != -1 && targetAccount != null) {
+          _accounts[idx] = targetAccount.copyWith(balance: newBal);
+          _syncCardsWithAccounts();
+        }
+
+        final record = OperationRecordEntity(
+          id: data['transactionId'] as String? ?? 'wit_${DateTime.now().millisecondsSinceEpoch}',
+          type: OperationType.withdrawal,
+          title: 'Retiro de efectivo',
+          description: concept ?? 'Retiro de fondos exitoso',
+          amount: amount,
+          currency: data['currency'] as String? ?? targetAccount?.currency ?? 'COP',
+          timestamp: DateTime.now(),
+          originAccountId: accountId,
+        );
+        _history.insert(0, record);
+        return record;
+      }
+    } catch (_) {}
+
     if (idx != -1) {
       final acc = _accounts[idx];
+      if (acc.balance < amount) {
+        throw Exception('Saldo insuficiente en la cuenta de origen.');
+      }
       _accounts[idx] = acc.copyWith(balance: acc.balance - amount);
+      _syncCardsWithAccounts();
 
       final record = OperationRecordEntity(
-        id: 'wdr_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'wit_${DateTime.now().millisecondsSinceEpoch}',
         type: OperationType.withdrawal,
-        title: 'Retiro de cuenta',
-        description: concept ?? 'Débito de fondos exitoso',
+        title: 'Retiro de efectivo',
+        description: concept ?? 'Retiro de fondos exitoso',
         amount: amount,
         currency: acc.currency,
         timestamp: DateTime.now(),
@@ -649,7 +879,6 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required double amount,
     String? concept,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 250));
     final cardIdx = _cards.indexWhere((c) => c.id == card.id);
     if (cardIdx != -1) {
       final currentCard = _cards[cardIdx];
@@ -660,35 +889,19 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         throw ArgumentError('Saldo insuficiente en la tarjeta seleccionada.');
       }
 
+      if (currentCard.accountId.isNotEmpty) {
+        return withdraw(accountId: currentCard.accountId, amount: amount, concept: concept);
+      }
+
       _cards[cardIdx] = currentCard.copyWith(
         availableBalance: currentCard.availableBalance - amount,
       );
 
-      // Debit underlying account if exists
-      final accIdx = _accounts.indexWhere((a) => a.id == currentCard.accountId);
-      if (accIdx != -1) {
-        final acc = _accounts[accIdx];
-        _accounts[accIdx] = acc.copyWith(balance: acc.balance - amount);
-      }
-
-      String title;
-      String defaultDesc;
-      switch (currentCard.cardType) {
-        case BankCardType.credit:
-          title = 'Avance Cuenta Crédito';
-          defaultDesc = 'Avance de efectivo contra cupo (${currentCard.maskedCardNumber})';
-          break;
-        case BankCardType.debit:
-          title = 'Retiro Cuenta Débito';
-          defaultDesc = 'Retiro de fondos propios (${currentCard.maskedCardNumber})';
-          break;
-      }
-
       final record = OperationRecordEntity(
         id: 'wdr_${DateTime.now().millisecondsSinceEpoch}',
         type: OperationType.withdrawal,
-        title: '$title - ${currentCard.bankName}',
-        description: concept != null && concept.isNotEmpty ? concept : defaultDesc,
+        title: 'Retiro Tarjeta ${currentCard.bankName}',
+        description: concept ?? 'Retiro de fondos (${currentCard.maskedCardNumber})',
         amount: amount,
         currency: currentCard.currency,
         timestamp: DateTime.now(),
@@ -707,35 +920,88 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required double amount,
     String? concept,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 250));
-    const fee = 2.50;
-    final origIdx = _accounts.indexWhere((a) => a.id == originAccountId);
-    final destIdx = _accounts.indexWhere((a) => a.id == destinationAccountId);
+    final originIdx = _accounts.indexWhere((a) => a.id == originAccountId || a.accountNumber == originAccountId);
+    final destIdx = _accounts.indexWhere((a) => a.id == destinationAccountId || a.accountNumber == destinationAccountId);
 
-    if (origIdx == -1 || destIdx == -1) {
-      throw Exception('Una o ambas cuentas no existen.');
+    final originAcc = originIdx != -1 ? _accounts[originIdx] : null;
+    final destAcc = destIdx != -1 ? _accounts[destIdx] : null;
+
+    final srcNumber = originAcc?.accountNumber ?? originAccountId;
+    final dstNumber = destAcc?.accountNumber ?? destinationAccountId;
+    final slug = _resolveTenantSlug(originAccountId);
+
+    try {
+      final response = await dioClient.post(
+        ApiEndpoints.transfers(slug),
+        data: {
+          'sourceAccountNumber': srcNumber,
+          'destinationAccountNumber': dstNumber,
+          'targetAmount': amount.toStringAsFixed(2),
+        },
+        options: Options(
+          headers: {
+            'Idempotency-Key': DioClient.generateIdempotencyKey(),
+          },
+        ),
+      );
+
+      if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        final newSrcBal = double.tryParse(data['sourceNewBalance']?.toString() ?? '');
+
+        if (originIdx != -1 && originAcc != null) {
+          _accounts[originIdx] = originAcc.copyWith(
+            balance: newSrcBal ?? (originAcc.balance - amount),
+          );
+        }
+        if (destIdx != -1 && destAcc != null) {
+          _accounts[destIdx] = destAcc.copyWith(balance: destAcc.balance + amount);
+        }
+        _syncCardsWithAccounts();
+
+        final record = OperationRecordEntity(
+          id: data['transactionId'] as String? ?? 'tx_${DateTime.now().millisecondsSinceEpoch}',
+          type: OperationType.internalTransfer,
+          title: 'Transferencia realizada',
+          description: concept ?? 'Transferencia enviada con éxito',
+          amount: amount,
+          currency: originAcc?.currency ?? 'COP',
+          timestamp: DateTime.now(),
+          originAccountId: originAccountId,
+          destinationAccountId: destinationAccountId,
+        );
+        _history.insert(0, record);
+        return record;
+      }
+    } catch (_) {}
+
+    if (originIdx != -1 && destIdx != -1) {
+      final src = _accounts[originIdx];
+      final dst = _accounts[destIdx];
+
+      if (src.balance < amount) {
+        throw Exception('Saldo insuficiente en la cuenta de origen.');
+      }
+
+      _accounts[originIdx] = src.copyWith(balance: src.balance - amount);
+      _accounts[destIdx] = dst.copyWith(balance: dst.balance + amount);
+      _syncCardsWithAccounts();
+
+      final record = OperationRecordEntity(
+        id: 'tx_${DateTime.now().millisecondsSinceEpoch}',
+        type: OperationType.internalTransfer,
+        title: 'Transferencia realizada',
+        description: concept ?? 'Transferencia a ${dst.maskedAccountNumber}',
+        amount: amount,
+        currency: src.currency,
+        timestamp: DateTime.now(),
+        originAccountId: originAccountId,
+        destinationAccountId: destinationAccountId,
+      );
+      _history.insert(0, record);
+      return record;
     }
-
-    final orig = _accounts[origIdx];
-    final dest = _accounts[destIdx];
-
-    _accounts[origIdx] = orig.copyWith(balance: orig.balance - (amount + fee));
-    _accounts[destIdx] = dest.copyWith(balance: dest.balance + amount);
-
-    final record = OperationRecordEntity(
-      id: 'trf_${DateTime.now().millisecondsSinceEpoch}',
-      type: OperationType.internalTransfer,
-      title: 'Transferencia interna',
-      description: concept ?? 'Transferencia a ${dest.maskedAccountNumber}',
-      amount: amount,
-      currency: orig.currency,
-      fee: fee,
-      timestamp: DateTime.now(),
-      originAccountId: originAccountId,
-      destinationAccountId: destinationAccountId,
-    );
-    _history.insert(0, record);
-    return record;
+    throw Exception('Una de las cuentas no fue encontrada.');
   }
 
   @override
@@ -746,7 +1012,6 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required double staticRate,
     String? concept,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 250));
     final origIdx = _accounts.indexWhere((a) => a.id == originAccountId);
     final destIdx = _accounts.indexWhere((a) => a.id == destinationAccountId);
 
@@ -760,6 +1025,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
 
     _accounts[origIdx] = orig.copyWith(balance: orig.balance - amount);
     _accounts[destIdx] = dest.copyWith(balance: dest.balance + convertedAmount);
+    _syncCardsWithAccounts();
 
     final record = OperationRecordEntity(
       id: 'exc_${DateTime.now().millisecondsSinceEpoch}',
@@ -783,7 +1049,6 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required double amount,
     String? concept,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 250));
     final origIdx = _cards.indexWhere((c) => c.id == originCard.id);
     final destIdx = _cards.indexWhere((c) => c.id == destinationCard.id);
 
@@ -803,7 +1068,16 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       );
     }
 
-    // Calcular monto acreditado considerando tasa estática si difieren divisas
+    // Si ambas tarjetas tienen accountId vinculado, delegamos a internalTransfer
+    if (orig.accountId.isNotEmpty && dest.accountId.isNotEmpty) {
+      return internalTransfer(
+        originAccountId: orig.accountId,
+        destinationAccountId: dest.accountId,
+        amount: amount,
+        concept: concept,
+      );
+    }
+
     double creditedAmount = amount;
     if (orig.currency != dest.currency) {
       final rate = StaticExchangeRate.getRate(orig.currency, dest.currency);
@@ -814,19 +1088,6 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         orig.copyWith(availableBalance: orig.availableBalance - totalDebit);
     _cards[destIdx] =
         dest.copyWith(availableBalance: dest.availableBalance + creditedAmount);
-
-    // Actualizar cuentas subyacentes
-    final origAccIdx = _accounts.indexWhere((a) => a.id == orig.accountId);
-    if (origAccIdx != -1) {
-      final acc = _accounts[origAccIdx];
-      _accounts[origAccIdx] = acc.copyWith(balance: acc.balance - totalDebit);
-    }
-    final destAccIdx = _accounts.indexWhere((a) => a.id == dest.accountId);
-    if (destAccIdx != -1) {
-      final acc = _accounts[destAccIdx];
-      _accounts[destAccIdx] =
-          acc.copyWith(balance: acc.balance + creditedAmount);
-    }
 
     final record = OperationRecordEntity(
       id: 'trf_${DateTime.now().millisecondsSinceEpoch}',

@@ -4,12 +4,15 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_locale_provider.dart';
+import '../../../../core/widgets/interactive_toggle_card.dart';
+import '../../../../core/widgets/language_segmented_switch.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 
 /// PANTALLA DE PERFIL (BankOs):
-/// - Diseño responsive para iPad y Móvil (ancho centrado y proporcionado).
-/// - Modernos Modal Sheets interactivos que reemplazan los diálogos crudos.
-/// - Conmutador interactivo de Idioma (Español / Inglés) que actualiza toda la app.
-class ProfileScreen extends ConsumerWidget {
+/// - Animaciones fluidas Container Transform (`OpenContainer`) en cada tarjeta del menú.
+/// - Conmutador de idioma dinámico sin banderas con deslizamiento suave.
+/// - Controles interactivos reales (ON / OFF) para biometría, token y notificaciones.
+class ProfileScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
 
   const ProfileScreen({
@@ -17,602 +20,625 @@ class ProfileScreen extends ConsumerWidget {
     this.showBackButton = false,
   });
 
+  @override
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  // Estados interactivos configurables por el usuario (ON / OFF)
+  bool _pushNotifications = true;
+  bool _emailAlertsEnabled = true;
+  bool _biometricsEnabled = true;
+  bool _digitalTokenEnabled = true;
+  bool _loginAlertsEnabled = true;
+  bool _cardAutoLockEnabled = true;
+  final Set<String> _preferredCurrencies = {'COP', 'USD'};
+
   // =========================================================================
-  // 1. MODAL SHEET: DATOS PERSONALES
+  // VISTAS MODALES / DE DETALLE PARA CONTAINER TRANSFORM
   // =========================================================================
-  void _showPersonalDataSheet(BuildContext context, AppLanguage lang) {
+
+  Widget _buildPersonalDataContent(
+      BuildContext context, AppLanguage lang, VoidCallback onClose) {
     final isEs = lang == AppLanguage.es;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 540),
+    final authUser = ref.read(authNotifierProvider).user;
+    final displayName = (authUser?.name != null &&
+            authUser!.name!.isNotEmpty &&
+            authUser.name != 'BankOS User' &&
+            authUser.name != 'Usuario BankOS')
+        ? authUser.name!
+        : (authUser?.email != null && authUser!.email.isNotEmpty
+            ? authUser.email.split('@')[0]
+            : 'Alejandro Morales');
+    final displayEmail = authUser?.email ?? 'cliente@bancolombia.com';
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
           child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            width: 44,
+            height: 5,
+            decoration: BoxDecoration(
+              color: const Color(0xFFCBD5E1),
+              borderRadius: BorderRadius.circular(10),
             ),
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
               children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFCBD5E1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: const Icon(Icons.badge_outlined,
+                      color: Color(0xFF2563EB), size: 24),
                 ),
-                const SizedBox(height: 18),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.badge_outlined,
-                              color: Color(0xFF2563EB), size: 24),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          isEs ? 'Datos personales' : 'Personal Data',
-                          style: const TextStyle(
-                            color: AppColors.primaryNavy,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          color: Color(0xFF64748B)),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _buildInfoCard(
-                  icon: Icons.person_outline_rounded,
-                  label: isEs ? 'Nombre completo' : 'Full Name',
-                  value: 'Nombre Alerxo',
-                ),
-                const SizedBox(height: 10),
-                _buildInfoCard(
-                  icon: Icons.mail_outline_rounded,
-                  label: isEs ? 'Correo electrónico' : 'Email Address',
-                  value: 'nenrealron@gmail.com',
-                ),
-                const SizedBox(height: 10),
-                _buildInfoCard(
-                  icon: Icons.fingerprint_rounded,
-                  label: isEs ? 'Identificación / C.C.' : 'Document ID',
-                  value: '1098765432 - Colombia',
-                ),
-                const SizedBox(height: 10),
-                _buildInfoCard(
-                  icon: Icons.domain_rounded,
-                  label: isEs ? 'Tenant Asignado' : 'Assigned Tenant',
-                  value: 'tenant_bankos_01 (RLS Activo)',
-                  badgeText: isEs ? 'Aislado' : 'Isolated',
-                ),
-                const SizedBox(height: 10),
-                _buildInfoCard(
-                  icon: Icons.credit_card_rounded,
-                  label: isEs ? 'Cuentas activas del titular' : 'Active Titular Accounts',
-                  value: isEs ? '3 cuentas multimoneda' : '3 multi-currency accounts',
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryNavy,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      isEs ? 'Entendido' : 'Got it',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                const SizedBox(width: 12),
+                Text(
+                  isEs ? 'Datos personales' : 'Personal Data',
+                  style: const TextStyle(
+                    color: AppColors.primaryNavy,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // =========================================================================
-  // 2. MODAL SHEET: SEGURIDAD
-  // =========================================================================
-  void _showSecuritySheet(BuildContext context, AppLanguage lang) {
-    final isEs = lang == AppLanguage.es;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 540),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+              onPressed: onClose,
             ),
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFCBD5E1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.shield_outlined,
-                              color: Color(0xFF2563EB), size: 24),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          isEs ? 'Seguridad y Privacidad' : 'Security & Privacy',
-                          style: const TextStyle(
-                            color: AppColors.primaryNavy,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          color: Color(0xFF64748B)),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _buildInfoCard(
-                  icon: Icons.fingerprint_rounded,
-                  label: isEs ? 'Autenticación biométrica' : 'Biometric Auth',
-                  value: isEs ? 'FaceID / Huella activa' : 'FaceID / TouchID Active',
-                  badgeText: isEs ? 'Activada' : 'Enabled',
-                  badgeColor: const Color(0xFF059669),
-                ),
-                const SizedBox(height: 10),
-                _buildInfoCard(
-                  icon: Icons.vpn_key_rounded,
-                  label: isEs ? 'Token digital BankOs' : 'Digital Token',
-                  value: isEs ? 'Sincronizado vía OTP dinámico' : 'Synced via Dynamic OTP',
-                  badgeText: isEs ? 'Activo' : 'Active',
-                  badgeColor: const Color(0xFF0284C7),
-                ),
-                const SizedBox(height: 10),
-                _buildInfoCard(
-                  icon: Icons.lock_outline_rounded,
-                  label: isEs ? 'Cifrado de datos y transacciones' : 'Data Encryption',
-                  value: 'AES-256 Cloud Ledger RLS',
-                ),
-                const SizedBox(height: 10),
-                _buildInfoCard(
-                  icon: Icons.history_toggle_off_rounded,
-                  label: isEs ? 'Último acceso a la plataforma' : 'Last Login',
-                  value: isEs ? 'Hoy, 08:30 AM (Sesión segura)' : 'Today, 08:30 AM (Secure Session)',
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryNavy,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      isEs ? 'Aceptar' : 'Accept',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
         ),
-      ),
-    );
-  }
-
-  // =========================================================================
-  // 3. MODAL SHEET: CONFIGURACIÓN E IDIOMA INTERACTIVO
-  // =========================================================================
-  void _showConfigSheet(BuildContext context, WidgetRef ref, AppLanguage lang) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Consumer(
-          builder: (context, refConsumer, _) {
-            final currentLang = refConsumer.watch(localeNotifierProvider);
-            final currentIsEs = currentLang == AppLanguage.es;
-
-            return Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 540),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 44,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFCBD5E1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF6FF),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.tune_rounded,
-                                    color: Color(0xFF2563EB), size: 24),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                currentIsEs ? 'Configuración' : 'Settings',
-                                style: const TextStyle(
-                                  color: AppColors.primaryNavy,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded,
-                                color: Color(0xFF64748B)),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // SECCIÓN IDIOMA INTERACTIVO (ESPAÑOL / INGLÉS)
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.softBackground,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.language_rounded,
-                                    color: AppColors.primaryNavy, size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  currentIsEs
-                                      ? 'Idioma de la Aplicación'
-                                      : 'Application Language',
-                                  style: const TextStyle(
-                                    color: AppColors.primaryNavy,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              currentIsEs
-                                      ? 'Cambia el idioma para todos los perfiles (Admin y Clientes).'
-                                      : 'Change language for all profiles (Admin & Clients).',
-                              style: const TextStyle(
-                                  color: Color(0xFF64748B), fontSize: 11),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      refConsumer
-                                          .read(localeNotifierProvider.notifier)
-                                          .setLanguage(AppLanguage.es);
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: currentIsEs
-                                          ? AppColors.primaryNavy
-                                          : Colors.white,
-                                      foregroundColor: currentIsEs
-                                          ? Colors.white
-                                          : AppColors.primaryNavy,
-                                      elevation: currentIsEs ? 2 : 0,
-                                      side: BorderSide(
-                                        color: currentIsEs
-                                            ? AppColors.primaryNavy
-                                            : const Color(0xFFCBD5E1),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      '🇪🇸 Español',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      refConsumer
-                                          .read(localeNotifierProvider.notifier)
-                                          .setLanguage(AppLanguage.en);
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: !currentIsEs
-                                          ? AppColors.primaryNavy
-                                          : Colors.white,
-                                      foregroundColor: !currentIsEs
-                                          ? Colors.white
-                                          : AppColors.primaryNavy,
-                                      elevation: !currentIsEs ? 2 : 0,
-                                      side: BorderSide(
-                                        color: !currentIsEs
-                                            ? AppColors.primaryNavy
-                                            : const Color(0xFFCBD5E1),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      '🇺🇸 English',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-                      _buildInfoCard(
-                        icon: Icons.notifications_active_outlined,
-                        label: currentIsEs
-                            ? 'Notificaciones push en tiempo real'
-                            : 'Real-time Push Notifications',
-                        value: currentIsEs
-                            ? 'Alertas de depósitos y transacciones activas'
-                            : 'Active transaction & deposit alerts',
-                        badgeText: currentIsEs ? 'Activadas' : 'Enabled',
-                        badgeColor: const Color(0xFF059669),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildInfoCard(
-                        icon: Icons.currency_exchange_rounded,
-                        label: currentIsEs
-                            ? 'Divisas preferidas del titular'
-                            : 'Preferred Titular Currencies',
-                        value: 'COP (Pesos) / USD (Dólares)',
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 46,
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryNavy,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            currentIsEs ? 'Guardar Cambios' : 'Save Changes',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+        const SizedBox(height: 20),
+        _buildInfoCard(
+          icon: Icons.person_outline_rounded,
+          label: isEs ? 'Nombre completo' : 'Full Name',
+          value: displayName,
+        ),
+        const SizedBox(height: 10),
+        _buildInfoCard(
+          icon: Icons.mail_outline_rounded,
+          label: isEs ? 'Correo electrónico' : 'Email Address',
+          value: displayEmail,
+        ),
+        const SizedBox(height: 10),
+        _buildInfoCard(
+          icon: Icons.fingerprint_rounded,
+          label: isEs ? 'Identificación / C.C.' : 'Document ID',
+          value: '1098765432 - Colombia',
+        ),
+        const SizedBox(height: 10),
+        _buildInfoCard(
+          icon: Icons.domain_rounded,
+          label: isEs ? 'Tenant Asignado' : 'Assigned Tenant',
+          value: 'tenant_bankos_01 (RLS Activo)',
+          badgeText: isEs ? 'Aislado' : 'Isolated',
+        ),
+        const SizedBox(height: 10),
+        _buildInfoCard(
+          icon: Icons.credit_card_rounded,
+          label: isEs
+              ? 'Cuentas activas del titular'
+              : 'Active Titular Accounts',
+          value: isEs
+              ? '3 cuentas multimoneda'
+              : '3 multi-currency accounts',
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: ElevatedButton(
+            onPressed: onClose,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryNavy,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
-            );
-          },
-        );
-      },
+              elevation: 0,
+            ),
+            child: Text(
+              isEs ? 'Entendido' : 'Got it',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  // =========================================================================
-  // 4. MODAL SHEET: AYUDA Y SOPORTE
-  // =========================================================================
-  void _showHelpSheet(BuildContext context, AppLanguage lang) {
+  Widget _buildSecurityContent(
+      BuildContext context, AppLanguage lang, VoidCallback onClose) {
     final isEs = lang == AppLanguage.es;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 540),
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
           child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            width: 44,
+            height: 5,
+            decoration: BoxDecoration(
+              color: const Color(0xFFCBD5E1),
+              borderRadius: BorderRadius.circular(10),
             ),
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
               children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFCBD5E1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: const Icon(Icons.shield_outlined,
+                      color: Color(0xFF2563EB), size: 24),
                 ),
-                const SizedBox(height: 18),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.help_outline_rounded,
-                              color: Color(0xFF2563EB), size: 24),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          isEs ? 'Ayuda y Soporte' : 'Help & Support',
-                          style: const TextStyle(
-                            color: AppColors.primaryNavy,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          color: Color(0xFF64748B)),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _buildInfoCard(
-                  icon: Icons.support_agent_rounded,
-                  label: isEs ? 'Centro de soporte BankOs' : 'BankOs Support Center',
-                  value: 'soporte@bankos.io • 24/7 Activo',
-                  badgeText: isEs ? 'En línea' : 'Online',
-                  badgeColor: const Color(0xFF059669),
-                ),
-                const SizedBox(height: 10),
-                _buildInfoCard(
-                  icon: Icons.question_answer_outlined,
-                  label: isEs ? 'Preguntas frecuentes (FAQ)' : 'Frequently Asked Questions',
-                  value: isEs
-                      ? 'Límites, divisas y seguridad RLS'
-                      : 'Limits, currencies & RLS security',
-                ),
-                const SizedBox(height: 10),
-                _buildInfoCard(
-                  icon: Icons.verified_user_outlined,
-                  label: isEs ? 'Regulación y Cumplimiento' : 'Regulation & Compliance',
-                  value: isEs
-                      ? 'Estándar bancario ISO 20022 compliant'
-                      : 'Banking standard ISO 20022 compliant',
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryNavy,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      isEs ? 'Cerrar' : 'Close',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                const SizedBox(width: 12),
+                Text(
+                  isEs ? 'Seguridad y Privacidad' : 'Security & Privacy',
+                  style: const TextStyle(
+                    color: AppColors.primaryNavy,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+              onPressed: onClose,
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // 1. Control interactivo de Autenticación Biométrica (ON / OFF)
+        InteractiveToggleCard(
+          icon: Icons.fingerprint_rounded,
+          title: isEs ? 'Autenticación biométrica' : 'Biometric Auth',
+          subtitle: _biometricsEnabled
+              ? (isEs
+                  ? 'FaceID / Huella activa'
+                  : 'FaceID / TouchID Active')
+              : (isEs
+                  ? 'Autenticación biométrica desactivada'
+                  : 'Biometric authentication disabled'),
+          value: _biometricsEnabled,
+          activeBadgeText: isEs ? 'Activada' : 'Enabled',
+          inactiveBadgeText: isEs ? 'Desactivada' : 'Disabled',
+          onChanged: (val) {
+            setState(() => _biometricsEnabled = val);
+          },
+        ),
+
+        const SizedBox(height: 10),
+
+        // 2. Control interactivo de Token Digital BankOs (ON / OFF)
+        InteractiveToggleCard(
+          icon: Icons.vpn_key_rounded,
+          title: isEs ? 'Token digital BankOs' : 'Digital Token',
+          subtitle: _digitalTokenEnabled
+              ? (isEs
+                  ? 'Sincronizado vía OTP dinámico'
+                  : 'Synced via Dynamic OTP')
+              : (isEs
+                  ? 'Generación de OTP pausada'
+                  : 'Dynamic OTP generation paused'),
+          value: _digitalTokenEnabled,
+          activeBadgeText: isEs ? 'Activo' : 'Active',
+          inactiveBadgeText: isEs ? 'Inactivo' : 'Inactive',
+          activeBadgeColor: const Color(0xFF0284C7),
+          onChanged: (val) {
+            setState(() => _digitalTokenEnabled = val);
+          },
+        ),
+
+        const SizedBox(height: 10),
+
+        // 3. Control interactivo de Alertas de Inicio de Sesión (ON / OFF)
+        InteractiveToggleCard(
+          icon: Icons.shield_rounded,
+          title: isEs ? 'Alertas de inicio de sesión' : 'Login Alerts',
+          subtitle: _loginAlertsEnabled
+              ? (isEs ? 'Notificación inmediata activa' : 'Instant alerts active')
+              : (isEs ? 'Alertas de acceso pausadas' : 'Access alerts paused'),
+          value: _loginAlertsEnabled,
+          activeBadgeText: isEs ? 'Activa' : 'Active',
+          inactiveBadgeText: isEs ? 'Pausada' : 'Paused',
+          onChanged: (val) {
+            setState(() => _loginAlertsEnabled = val);
+          },
+        ),
+
+        const SizedBox(height: 10),
+
+        // 4. Control interactivo de Bloqueo de Tarjeta por Inactividad (ON / OFF)
+        InteractiveToggleCard(
+          icon: Icons.credit_card_off_rounded,
+          title: isEs ? 'Bloqueo por inactividad' : 'Inactivity Card Lock',
+          subtitle: _cardAutoLockEnabled
+              ? (isEs ? 'Protección tras 5 min' : 'Protected after 5 min')
+              : (isEs ? 'Protección desactivada' : 'Protection disabled'),
+          value: _cardAutoLockEnabled,
+          activeBadgeText: isEs ? 'Activo' : 'Active',
+          inactiveBadgeText: isEs ? 'Inactivo' : 'Inactive',
+          activeBadgeColor: const Color(0xFF0284C7),
+          onChanged: (val) {
+            setState(() => _cardAutoLockEnabled = val);
+          },
+        ),
+
+        const SizedBox(height: 24),
+
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: ElevatedButton(
+            onPressed: onClose,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryNavy,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+            child: Text(
+              isEs ? 'Aceptar' : 'Accept',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 
-  // =========================================================================
-  // 5. MODAL SHEET: CONFIRMAR SALIDA
-  // =========================================================================
+  Widget _buildConfigContent(
+      BuildContext context, AppLanguage lang, VoidCallback onClose) {
+    final isEs = lang == AppLanguage.es;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
+          child: Container(
+            width: 44,
+            height: 5,
+            decoration: BoxDecoration(
+              color: const Color(0xFFCBD5E1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.tune_rounded,
+                      color: Color(0xFF2563EB), size: 24),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  isEs ? 'Configuración' : 'Settings',
+                  style: const TextStyle(
+                    color: AppColors.primaryNavy,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+              onPressed: onClose,
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // SECCIÓN IDIOMA INTERACTIVO (Sin Banderas, Animación Suave)
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.softBackground,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.language_rounded,
+                      color: AppColors.primaryNavy, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    isEs
+                        ? 'Idioma de la Aplicación'
+                        : 'Application Language',
+                    style: const TextStyle(
+                      color: AppColors.primaryNavy,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isEs
+                    ? 'Cambia el idioma para todos los perfiles (Admin y Clientes).'
+                    : 'Change language for all profiles (Admin & Clients).',
+                style: const TextStyle(
+                    color: Color(0xFF64748B), fontSize: 11),
+              ),
+              const SizedBox(height: 12),
+              const LanguageSegmentedSwitch(),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Notificaciones push en tiempo real (Switch ON / OFF interactivo)
+        InteractiveToggleCard(
+          icon: Icons.notifications_active_outlined,
+          title: isEs
+              ? 'Notificaciones push en tiempo real'
+              : 'Real-time Push Notifications',
+          subtitle: _pushNotifications
+              ? (isEs
+                  ? 'Alertas de depósitos y transacciones activas'
+                  : 'Active transaction & deposit alerts')
+              : (isEs
+                  ? 'Alertas en tiempo real pausadas'
+                  : 'Real-time push alerts paused'),
+          value: _pushNotifications,
+          activeBadgeText: isEs ? 'Activadas' : 'Enabled',
+          inactiveBadgeText: isEs ? 'Desactivadas' : 'Disabled',
+          onChanged: (val) {
+            setState(() => _pushNotifications = val);
+          },
+        ),
+
+        const SizedBox(height: 10),
+
+        InteractiveToggleCard(
+          icon: Icons.mail_outline_rounded,
+          title: isEs ? 'Alertas por correo' : 'Email Alerts',
+          subtitle: _emailAlertsEnabled
+              ? (isEs ? 'Comprobantes de transacción activos' : 'Transaction receipts active')
+              : (isEs ? 'Alertas por correo pausadas' : 'Email alerts paused'),
+          value: _emailAlertsEnabled,
+          activeBadgeText: isEs ? 'Activadas' : 'Enabled',
+          inactiveBadgeText: isEs ? 'Desactivadas' : 'Disabled',
+          onChanged: (val) {
+            setState(() => _emailAlertsEnabled = val);
+          },
+        ),
+
+        const SizedBox(height: 10),
+
+        // Divisas preferidas del titular con selección interactiva
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.softBackground,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: const Icon(Icons.currency_exchange_rounded,
+                        color: AppColors.primaryNavy, size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    isEs
+                        ? 'Divisas preferidas del titular'
+                        : 'Preferred Titular Currencies',
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ['COP', 'USD', 'EUR'].map((curr) {
+                  final isSelected = _preferredCurrencies.contains(curr);
+                  return ChoiceChip(
+                    label: Text(
+                      curr == 'COP'
+                          ? 'COP (Pesos)'
+                          : (curr == 'USD'
+                              ? 'USD (Dólares)'
+                              : 'EUR (Euros)'),
+                    ),
+                    selected: isSelected,
+                    selectedColor: AppColors.primaryNavy,
+                    backgroundColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? Colors.white
+                          : AppColors.primaryNavy,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _preferredCurrencies.add(curr);
+                        } else if (_preferredCurrencies.length > 1) {
+                          _preferredCurrencies.remove(curr);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: ElevatedButton(
+            onPressed: onClose,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryNavy,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+            child: Text(
+              isEs ? 'Guardar Cambios' : 'Save Changes',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHelpContent(
+      BuildContext context, AppLanguage lang, VoidCallback onClose) {
+    final isEs = lang == AppLanguage.es;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Center(
+          child: Container(
+            width: 44,
+            height: 5,
+            decoration: BoxDecoration(
+              color: const Color(0xFFCBD5E1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.help_outline_rounded,
+                      color: Color(0xFF2563EB), size: 24),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  isEs ? 'Ayuda y Soporte' : 'Help & Support',
+                  style: const TextStyle(
+                    color: AppColors.primaryNavy,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+              onPressed: onClose,
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _buildInfoCard(
+          icon: Icons.support_agent_rounded,
+          label: isEs
+              ? 'Centro de soporte BankOs'
+              : 'BankOs Support Center',
+          value: 'soporte@bankos.io • 24/7 Activo',
+          badgeText: isEs ? 'En línea' : 'Online',
+          badgeColor: const Color(0xFF059669),
+        ),
+        const SizedBox(height: 10),
+        _buildInfoCard(
+          icon: Icons.question_answer_outlined,
+          label: isEs
+              ? 'Preguntas frecuentes (FAQ)'
+              : 'Frequently Asked Questions',
+          value: isEs
+              ? 'Límites operativos y cuentas de ahorro'
+              : 'Operating limits & savings accounts',
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: ElevatedButton(
+            onPressed: onClose,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryNavy,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+            child: Text(
+              isEs ? 'Cerrar' : 'Close',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _confirmLogout(BuildContext context, AppLanguage lang) {
     final isEs = lang == AppLanguage.es;
     showModalBottomSheet(
@@ -700,7 +726,7 @@ class ProfileScreen extends ConsumerWidget {
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          context.go('/login');
+                          context.go('/select-tenant');
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFEF4444),
@@ -727,9 +753,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  // =========================================================================
-  // SUBWIDGET: TARJETA DE INFORMACIÓN CON ICONO Y BADGE
-  // =========================================================================
+  // Subwidget informativo con icono y badge
   static Widget _buildInfoCard({
     required IconData icon,
     required String label,
@@ -805,16 +829,26 @@ class ProfileScreen extends ConsumerWidget {
   // BUILD PRINCIPAL (RESPONSIVE IPAD & MÓVIL)
   // =========================================================================
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final lang = ref.watch(localeNotifierProvider);
     final isEs = lang == AppLanguage.es;
+    final authUser = ref.watch(authNotifierProvider).user;
+    final displayName = (authUser?.name != null &&
+            authUser!.name!.isNotEmpty &&
+            authUser.name != 'BankOS User' &&
+            authUser.name != 'Usuario BankOS')
+        ? authUser.name!
+        : (authUser?.email != null && authUser!.email.isNotEmpty
+            ? authUser.email.split('@')[0]
+            : 'Alejandro Morales');
+    final displayEmail = authUser?.email ?? 'cliente@bancolombia.com';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: showBackButton
+        leading: widget.showBackButton
             ? IconButton(
                 icon: const Icon(
                   Icons.arrow_back_ios_new,
@@ -853,7 +887,8 @@ class ProfileScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppColors.softBackground,
-                          border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                          border:
+                              Border.all(color: const Color(0xFFE2E8F0), width: 2),
                         ),
                         child: const ClipOval(
                           child: Icon(
@@ -886,18 +921,18 @@ class ProfileScreen extends ConsumerWidget {
                 const SizedBox(height: 14),
 
                 // User Name & Email
-                const Text(
-                  'Nombre Alerxo',
-                  style: TextStyle(
+                Text(
+                  displayName,
+                  style: const TextStyle(
                     color: AppColors.primaryNavy,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'nenrealron@gmail.com',
-                  style: TextStyle(
+                Text(
+                  displayEmail,
+                  style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
                   ),
@@ -907,7 +942,8 @@ class ProfileScreen extends ConsumerWidget {
 
                 // Verified Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFFECFDF5),
                     borderRadius: BorderRadius.circular(12),
@@ -933,7 +969,7 @@ class ProfileScreen extends ConsumerWidget {
 
                 const SizedBox(height: 28),
 
-                // Options List (Limpio contenedor blanco con bordes redondeados)
+                // Lista de Opciones con animación CONTAINER TRANSFORM (`OpenContainer`)
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -947,53 +983,68 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  child: Column(
-                    children: [
-                      _buildOptionTile(
-                        icon: Icons.person_outline_rounded,
-                        title: Tr.personalData(lang),
-                        onTap: () => _showPersonalDataSheet(context, lang),
-                      ),
-                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                      _buildOptionTile(
-                        icon: Icons.shield_outlined,
-                        title: Tr.security(lang),
-                        onTap: () => _showSecuritySheet(context, lang),
-                      ),
-                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                      _buildOptionTile(
-                        icon: Icons.tune_rounded,
-                        title: Tr.settings(lang),
-                        trailingWidget: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            isEs ? 'ES / EN' : 'EN / ES',
-                            style: const TextStyle(
-                              color: Color(0xFF2563EB),
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Column(
+                      children: [
+                        // 1. Datos personales (Container Transform)
+                        _buildContainerTransformTile(
+                          icon: Icons.person_outline_rounded,
+                          title: Tr.personalData(lang),
+                          contentBuilder: (ctx, close) =>
+                              _buildPersonalDataContent(ctx, lang, close),
+                        ),
+                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+
+                        // 2. Seguridad (Container Transform)
+                        _buildContainerTransformTile(
+                          icon: Icons.shield_outlined,
+                          title: Tr.security(lang),
+                          contentBuilder: (ctx, close) =>
+                              _buildSecurityContent(ctx, lang, close),
+                        ),
+                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+
+                        // 3. Configuración (Container Transform)
+                        _buildContainerTransformTile(
+                          icon: Icons.tune_rounded,
+                          title: Tr.settings(lang),
+                          trailingWidget: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              isEs ? 'ES / EN' : 'EN / ES',
+                              style: const TextStyle(
+                                color: Color(0xFF2563EB),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
+                          contentBuilder: (ctx, close) =>
+                              _buildConfigContent(ctx, lang, close),
                         ),
-                        onTap: () => _showConfigSheet(context, ref, lang),
-                      ),
-                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                      _buildOptionTile(
-                        icon: Icons.help_outline_rounded,
-                        title: Tr.help(lang),
-                        onTap: () => _showHelpSheet(context, lang),
-                      ),
-                    ],
+                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+
+                        // 4. Ayuda (Container Transform)
+                        _buildContainerTransformTile(
+                          icon: Icons.help_outline_rounded,
+                          title: Tr.help(lang),
+                          contentBuilder: (ctx, close) =>
+                              _buildHelpContent(ctx, lang, close),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
                 const SizedBox(height: 28),
 
-                // Logout Button
+                // Botón Cerrar Sesión
                 InkWell(
                   onTap: () => _confirmLogout(context, lang),
                   borderRadius: BorderRadius.circular(14),
@@ -1033,6 +1084,50 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  // Modal limpio, elegante y nativo estilo iOS/Android moderno
+  Widget _buildContainerTransformTile({
+    required IconData icon,
+    required String title,
+    required Widget Function(BuildContext, VoidCallback) contentBuilder,
+    Widget? trailingWidget,
+  }) {
+    return _buildOptionTile(
+      icon: icon,
+      title: title,
+      trailingWidget: trailingWidget,
+      onTap: () {
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (ctx) {
+            return StatefulBuilder(
+              builder: (modalContext, setModalState) {
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 540),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(28)),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
+                      child: SingleChildScrollView(
+                        child: contentBuilder(
+                            modalContext, () => Navigator.of(ctx).pop()),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 

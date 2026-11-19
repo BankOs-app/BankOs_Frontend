@@ -28,68 +28,126 @@ abstract class AppRouter {
   static const String profilePath = '/profile';
   static const String adminPath = '/admin';
 
+  /// Transición limpia, sutil y suave tipo Fade (100% libre de distorsión, zoom o estiramientos)
+  static CustomTransitionPage<void> _buildFadePage({
+    required LocalKey key,
+    required Widget child,
+  }) {
+    return CustomTransitionPage<void>(
+      key: key,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 180),
+      reverseTransitionDuration: const Duration(milliseconds: 140),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+
   static final GoRouter router = GoRouter(
     initialLocation: launchPath,
     routes: <RouteBase>[
       GoRoute(
         path: launchPath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const LaunchScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const LaunchScreen(),
+        ),
       ),
       GoRoute(
         path: onboardingPath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const OnboardingScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const OnboardingScreen(),
+        ),
       ),
       GoRoute(
         path: loginPath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const LoginScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+        ),
       ),
       GoRoute(
         path: registerPath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const RegisterScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const RegisterScreen(),
+        ),
       ),
       GoRoute(
         path: forgotPasswordPath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const ForgotPasswordScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const ForgotPasswordScreen(),
+        ),
       ),
       GoRoute(
         path: selectTenantPath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const SelectTenantScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const SelectTenantScreen(),
+        ),
       ),
       GoRoute(
         path: homePath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const HomeScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const HomeScreen(),
+        ),
       ),
       GoRoute(
         path: depositPath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const DepositScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const DepositScreen(),
+        ),
       ),
       GoRoute(
         path: withdrawPath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const WithdrawScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const WithdrawScreen(),
+        ),
       ),
       GoRoute(
         path: transferPath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const TransferScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const TransferScreen(),
+        ),
       ),
       GoRoute(
         path: profilePath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const ProfileScreen(showBackButton: true),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const ProfileScreen(showBackButton: true),
+        ),
       ),
       GoRoute(
         path: adminPath,
-        builder: (BuildContext context, GoRouterState state) =>
-            const AdminHomeScreen(),
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const AdminHomeScreen(),
+        ),
       ),
     ],
   );

@@ -30,11 +30,19 @@ void main() {
     expect(find.text('Siguiente'), findsOneWidget);
     expect(find.text('Omitir'), findsOneWidget);
 
-    // 3. Tap "Omitir" to navigate to LoginScreen
+    // 3. Tap "Omitir" to navigate to SelectTenantScreen (Portal / Dashboard de Bancos Registrados)
     await tester.tap(find.text('Omitir'));
     await tester.pumpAndSettle();
 
-    // Clean Login Screen (credentials only, bank selection moved to dedicated blue screen)
+    // Portal Central de Bancos Registrados (El usuario ve los bancos ANTES de iniciar sesión)
+    expect(find.text('Elige tu Entidad Financiera'), findsOneWidget);
+    expect(find.text('Banco / Tenant a ingresar:'), findsOneWidget);
+
+    // 4. Seleccionar e ingresar a la entidad financiera seleccionada -> Lleva a LoginScreen
+    await tester.tap(find.byType(ElevatedButton).last);
+    await tester.pumpAndSettle();
+
+    // Clean Login Screen para el banco elegido
     expect(find.text('Correo electrónico'), findsOneWidget);
     expect(find.text('Contraseña'), findsOneWidget);
     expect(find.text('Iniciar sesión'), findsNWidgets(2));
@@ -42,40 +50,28 @@ void main() {
     expect(find.text('Registrarse'), findsOneWidget);
     expect(find.text('Ingresar con huella digital'), findsOneWidget);
 
-    // 4. Test Navigation to Register Screen
+    // 5. Test Navigation to Progressive Register Screen
     await tester.tap(find.text('Registrarse'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Crea tu cuenta'), findsOneWidget);
+    expect(find.text('Registro de Cliente'), findsOneWidget);
+    expect(find.text('Paso 1 de 5'), findsOneWidget);
+    expect(find.text('¿Cómo te llamas?'), findsOneWidget);
     expect(find.text('Nombre completo:'), findsOneWidget);
     expect(find.text('Carlos Gómez'), findsOneWidget);
-    expect(find.text('Número de documento:'), findsOneWidget);
-    expect(find.text('Teléfono:'), findsOneWidget);
-    expect(find.text('Verificación de contraseña:'), findsOneWidget);
 
     // Go back to Login
     await tester.tap(find.text('Iniciar sesión'));
     await tester.pumpAndSettle();
 
-    // 5. Tap "Iniciar sesión" on LoginScreen -> routes to SelectTenantScreen
+    // 6. Enter credentials on LoginScreen -> routes directly to HomeScreen
+    await tester.enterText(find.byType(TextField).at(0), 'cliente@bancolombia.com');
+    await tester.enterText(find.byType(TextField).at(1), '1234');
     await tester.tap(find.widgetWithText(ElevatedButton, 'Iniciar sesión'));
-    await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
 
-    // Dedicated Select Tenant Screen (Blue background, bank dropdown, tenant isolation info)
-    expect(find.text('Elige tu Entidad Financiera'), findsOneWidget);
-    expect(find.text('Banco / Tenant a ingresar:'), findsOneWidget);
-    expect(find.text('Cuenta Global BankOs'), findsWidgets);
-    expect(find.text('Ingresar a Cuenta Global BankOs'), findsOneWidget);
-
-    // 6. Confirm bank selection -> enters HomeScreen
-    await tester.tap(find.text('Ingresar a Cuenta Global BankOs'));
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pumpAndSettle();
-
-    // Now on BankOS HomeScreen with Active Global Account
-    expect(find.text('¡Hola, [Nombre]!'), findsOneWidget);
-    expect(find.text('Hub Multidivisa BankOs'), findsOneWidget);
+    // 7. Now on BankOS HomeScreen with dynamic user greeting and bank branding
+    expect(find.textContaining('¡Hola,'), findsOneWidget);
     expect(find.text('Cambiar'), findsOneWidget);
     expect(find.text('Dinero actual:'), findsOneWidget);
     expect(find.text('Operaciones Financieras'), findsOneWidget);
@@ -107,7 +103,6 @@ void main() {
     expect(find.text('1. Cuenta de origen (De dónde saldrán los fondos):'), findsOneWidget);
     expect(find.text('2. Cuenta destino (A dónde se van los fondos):'), findsOneWidget);
     expect(find.text('3. Monto a depositar:'), findsOneWidget);
-    expect(find.text('Conversión a Dólares y Euros (Tiempo Real):'), findsOneWidget);
     expect(find.text('Confirmar Depósito'), findsOneWidget);
 
     // Return to Home
@@ -123,7 +118,14 @@ void main() {
     expect(find.text('2. Tarjetas anexadas a este banco:'), findsOneWidget);
     expect(find.text('3. Divisa a retirar:'), findsOneWidget);
     expect(find.text('4. Monto a retirar:'), findsOneWidget);
-    expect(find.text('Conversión a Dólares y Euros (Tiempo Real):'), findsOneWidget);
+    // El banco activo es Cuenta Global BankOs (USD) y la divisa a retirar por defecto es USD:
+    // Al ser la misma divisa, NO debe aparecer conversión en tiempo real
+    expect(find.textContaining('Conversión en Tiempo Real'), findsNothing);
+
+    // Si seleccionamos retirar en EUR, debe mostrarse la conversión dinámica
+    await tester.tap(find.text('EUR (€)'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Conversión en Tiempo Real'), findsOneWidget);
     expect(find.text('Confirmar Retiro'), findsOneWidget);
 
     // Return to Home
@@ -134,12 +136,12 @@ void main() {
     await tester.tap(find.text('Perfil'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Nombre Alerxo'), findsOneWidget);
-    expect(find.text('nenrealron@gmail.com'), findsOneWidget);
+    expect(find.text('Alejandro Morales'), findsOneWidget);
+    expect(find.text('cliente@bancolombia.com'), findsOneWidget);
     expect(find.text('Datos personales'), findsOneWidget);
     expect(find.text('Seguridad'), findsOneWidget);
     expect(find.text('Configuración'), findsOneWidget);
-    expect(find.text('Ayuda'), findsOneWidget);
+    expect(find.textContaining('Ayuda'), findsOneWidget);
     expect(find.text('Cerrar sesión'), findsOneWidget);
   });
 }
