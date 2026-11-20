@@ -294,7 +294,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (context) => AlertDialog(
+          builder: (dialogCtx) => AlertDialog(
             backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(22),
@@ -347,15 +347,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             actions: [
               ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(context);
+                onPressed: () {
                   ref
                       .read(operationsNotifierProvider.notifier)
-                      .switchActiveBankByEmail(email);
-                  await ref
+                      .switchActiveBank(currentBank);
+                  ref
                       .read(operationsNotifierProvider.notifier)
                       .loadInitialData();
-                  if (context.mounted) {
+                  Navigator.of(dialogCtx).pop();
+                  if (mounted) {
                     context.go('/home');
                   }
                 },
@@ -373,7 +373,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 child: Text(
                   _tr('Entrar a BankOS', 'Continue to BankOS'),
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
