@@ -167,9 +167,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final part = user.email.split('@')[0];
       displayName = part.length > 1
           ? (part.substring(0, 1).toUpperCase() + part.substring(1))
-          : 'Alejandro Morales';
+          : 'Cliente BankOS';
     } else {
-      displayName = 'Alejandro Morales';
+      displayName = 'Cliente BankOS';
     }
 
     return SafeArea(

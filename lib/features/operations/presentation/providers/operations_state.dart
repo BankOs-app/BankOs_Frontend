@@ -233,10 +233,7 @@ class OperationsState {
               allIds.contains(h.destinationAccountId));
     }).toList();
 
-    if (filtered.isNotEmpty) return filtered;
-
-    // Fallback: filter by currency matching current bank
-    return history.where((h) => h.currency == currentBank.currency).toList();
+    return filtered;
   }
 
   List<BankCardEntity> getCardsForBank(String bankId) {

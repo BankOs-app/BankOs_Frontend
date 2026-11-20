@@ -84,7 +84,7 @@ void main() {
     // 6. PASO 6: PIN Transaccional de 4 Dígitos
     expect(find.text('Paso 6 de 6'), findsOneWidget);
     expect(find.text('Crea tu PIN de seguridad'), findsOneWidget);
-    expect(find.text('PIN Transaccional (4 dígitos):'), findsOneWidget);
+    expect(find.text('PIN transaccional (4 dígitos):'), findsOneWidget);
     expect(find.text('Confirma tu PIN:'), findsOneWidget);
     expect(find.text('Crear mi cuenta'), findsOneWidget);
 

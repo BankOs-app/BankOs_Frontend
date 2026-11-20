@@ -28,7 +28,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Widget build(BuildContext context) {
     final lang = ref.watch(localeNotifierProvider);
     final state = ref.watch(operationsNotifierProvider);
-    final allHistory = state.history;
+    final allHistory = state.activeTenantHistory;
 
     final filteredList = allHistory.where((record) {
       final matchesFilter =

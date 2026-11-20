@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_locale_provider.dart';
+import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../domain/entities/bank_card_entity.dart';
 import '../../domain/entities/registered_bank_entity.dart';
@@ -57,25 +58,56 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     );
   }
 
+  BankCardEntity? _resolveOriginCard(
+    OperationsState operationsState,
+    UserEntity? signedInUser,
+    RegisteredBankEntity bank,
+  ) {
+    if (signedInUser?.name != null && signedInUser!.name!.trim().isNotEmpty) {
+      final owned = operationsState
+          .getCardsForBank(bank.id)
+          .where(
+            (card) =>
+                card.cardHolder.trim().toLowerCase() ==
+                signedInUser.name!.trim().toLowerCase(),
+          )
+          .firstOrNull;
+      if (owned != null) return owned;
+    }
+
+    final activeCard = operationsState.activeTenantCards.firstOrNull;
+    if (activeCard != null) return activeCard;
+
+    final activeAcc = operationsState.activeTenantAccounts.firstOrNull ??
+        operationsState.primaryAccount;
+    if (activeAcc != null) {
+      return BankCardEntity(
+        id: activeAcc.id,
+        bankId: bank.id,
+        bankName: bank.name,
+        cardNumber: activeAcc.accountNumber,
+        cardHolder: signedInUser?.name ?? 'Cliente BankOS',
+        cardType: BankCardType.debit,
+        availableBalance: activeAcc.balance,
+        currency: activeAcc.currency,
+        isActive: activeAcc.isActive,
+        accountId: activeAcc.id,
+      );
+    }
+
+    return operationsState.primaryCard;
+  }
+
   void _proceedToPreview() {
     final lang = ref.read(localeNotifierProvider);
     final operationsState = ref.read(operationsNotifierProvider);
     final origBank = operationsState.currentBank;
     final signedInUser = ref.read(authNotifierProvider).user;
-    final ownedCards = operationsState
-        .getCardsForBank(origBank.id)
-        .where(
-          (card) =>
-              signedInUser?.name != null &&
-              card.cardHolder.trim().toLowerCase() ==
-                  signedInUser!.name!.trim().toLowerCase(),
-        )
-        .toList();
-    if (ownedCards.isEmpty) {
+    final origCard = _resolveOriginCard(operationsState, signedInUser, origBank);
+    if (origCard == null) {
       _showSnackBar(Tr.noSessionAccount(lang, origBank.name));
       return;
     }
-    final origCard = ownedCards.first;
 
     final destinationNumber = _destinationAccountController.text.trim();
     if (!RegExp(r'^\d{6,30}$').hasMatch(destinationNumber)) {
@@ -545,16 +577,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     final operationsState = ref.watch(operationsNotifierProvider);
     final currentBank = operationsState.currentBank;
     final signedInUser = ref.watch(authNotifierProvider).user;
-    final ownedCards = operationsState
-        .getCardsForBank(currentBank.id)
-        .where(
-          (card) =>
-              signedInUser?.name != null &&
-              card.cardHolder.trim().toLowerCase() ==
-                  signedInUser!.name!.trim().toLowerCase(),
-        )
-        .toList();
-    final originCard = ownedCards.isEmpty ? null : ownedCards.first;
+    final originCard =
+        _resolveOriginCard(operationsState, signedInUser, currentBank);
     final destinationNumber = _destinationAccountController.text.trim();
     final destinationCards = operationsState.cards
         .where((card) => card.cardNumber.trim() == destinationNumber)

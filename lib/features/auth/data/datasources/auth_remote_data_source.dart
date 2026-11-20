@@ -10,6 +10,7 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/user_entity.dart';
 import '../models/user_model.dart';
+import '../../../operations/data/datasources/operations_remote_data_source.dart';
 
 abstract class AuthRemoteDataSource {
   Future<UserModel> login(String email, String password);
@@ -115,6 +116,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
                   : (cleanEmail.contains('bancolombia')
                         ? 'Alejandro Morales'
                         : cleanEmail.split('@')[0]));
+
+        OperationsRemoteDataSourceImpl.activeCustomerName = displayName;
 
         return UserModel(
           id: userObj['userId'] as String? ?? 'usr_001',
@@ -260,6 +263,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         : '1234';
     activeTransactionalPin = cleanPin;
     final tenantSlug = _inferTenant(cleanEmail);
+
+    OperationsRemoteDataSourceImpl.initNewUserSession(
+      fullName: fullName,
+      email: cleanEmail,
+      tenantSlug: tenantSlug,
+    );
 
     try {
       final response = await dioClient.post(

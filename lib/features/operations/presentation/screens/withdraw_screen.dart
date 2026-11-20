@@ -32,32 +32,39 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     String? customerName,
   ) {
     final bank = state.currentBank;
-    if (customerName == null || customerName.trim().isEmpty) return null;
+    if (customerName != null && customerName.trim().isNotEmpty) {
+      final ownedCard = state
+          .getCardsForBank(bank.id)
+          .where(
+            (card) =>
+                card.cardHolder.trim().toLowerCase() ==
+                customerName.trim().toLowerCase(),
+          )
+          .firstOrNull;
+      if (ownedCard != null) return ownedCard;
+    }
 
-    final ownedCard = state
-        .getCardsForBank(bank.id)
-        .where(
-          (card) =>
-              card.cardHolder.trim().toLowerCase() ==
-              customerName.trim().toLowerCase(),
-        )
-        .firstOrNull;
-    if (ownedCard != null) return ownedCard;
+    final activeCard = state.activeTenantCards.firstOrNull;
+    if (activeCard != null) return activeCard;
 
-    final account = state.activeTenantAccounts.firstOrNull;
-    if (account == null) return null;
-    return BankCardEntity(
-      id: account.id,
-      bankId: bank.id,
-      bankName: bank.name,
-      cardNumber: account.accountNumber,
-      cardHolder: customerName,
-      cardType: BankCardType.debit,
-      availableBalance: account.balance,
-      currency: account.currency,
-      isActive: account.isActive,
-      accountId: account.id,
-    );
+    final account =
+        state.activeTenantAccounts.firstOrNull ?? state.primaryAccount;
+    if (account != null) {
+      return BankCardEntity(
+        id: account.id,
+        bankId: bank.id,
+        bankName: bank.name,
+        cardNumber: account.accountNumber,
+        cardHolder: customerName ?? 'Cliente BankOS',
+        cardType: BankCardType.debit,
+        availableBalance: account.balance,
+        currency: account.currency,
+        isActive: account.isActive,
+        accountId: account.id,
+      );
+    }
+
+    return state.primaryCard;
   }
 
   @override

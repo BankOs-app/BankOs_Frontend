@@ -8,11 +8,24 @@ abstract class ApiEndpoints {
     defaultValue: '',
   );
 
+  static String? _runtimeBaseUrl;
+
+  /// Default LAN Host for physical Android devices and local network clients.
+  /// Host PC running NestJS backend on port 3000.
+  static const String defaultLanHost = '10.1.21.6:3000';
+
+  static void setBaseUrl(String url) {
+    _runtimeBaseUrl = url.trim();
+  }
+
   static String get baseUrl {
+    if (_runtimeBaseUrl != null && _runtimeBaseUrl!.isNotEmpty) {
+      return _runtimeBaseUrl!;
+    }
     if (_configuredBaseUrl.isNotEmpty) return _configuredBaseUrl;
     if (kIsWeb) return 'http://localhost:3000/api/v1';
     try {
-      if (Platform.isAndroid) return 'http://10.0.2.2:3000/api/v1';
+      if (Platform.isAndroid) return 'http://$defaultLanHost/api/v1';
     } catch (_) {}
     return 'http://localhost:3000/api/v1';
   }

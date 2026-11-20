@@ -75,10 +75,48 @@ abstract class OperationsRemoteDataSource {
 class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
   final DioClient dioClient;
 
+  static String? activeCustomerName;
+
   OperationsRemoteDataSourceImpl({required this.dioClient});
 
+  static void initNewUserSession({
+    required String fullName,
+    required String email,
+    required String tenantSlug,
+  }) {
+    activeCustomerName = fullName;
+    final accNumber =
+        '7007${(DateTime.now().millisecondsSinceEpoch % 1000000).toString().padLeft(6, '0')}';
+    final newAcc = BankAccountEntity(
+      id: 'acc_${DateTime.now().millisecondsSinceEpoch}',
+      accountNumber: accNumber,
+      accountType: 'Cuenta Débito',
+      balance: 0.00,
+      currency: 'COP',
+      isActive: true,
+      tenantId: 'tenant_banco_lombia',
+    );
+    final newCard = BankCardEntity(
+      id: 'card_${DateTime.now().millisecondsSinceEpoch}',
+      bankId: '4f2a0415-2697-42d7-878d-ab67a1f6a657',
+      bankName: 'Bancolombia',
+      cardNumber: accNumber,
+      cardHolder: fullName,
+      cardType: BankCardType.debit,
+      availableBalance: 0.00,
+      currency: 'COP',
+      accountId: newAcc.id,
+    );
+    _accounts.removeWhere((a) => a.accountNumber == '7007007001');
+    _accounts.insert(0, newAcc);
+    _cards.removeWhere((c) => c.cardNumber == '7007007001');
+    _cards.insert(0, newCard);
+    _history.removeWhere((h) =>
+        h.originAccountId == 'acc_01' || h.destinationAccountId == 'acc_01');
+  }
+
   // Cuentas locales de inicialización y contingencia
-  final List<BankAccountEntity> _accounts = [
+  static final List<BankAccountEntity> _accounts = [
     const BankAccountEntity(
       id: 'acc_01',
       accountNumber: '7007007001',
@@ -136,7 +174,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
   ];
 
   // Instituciones registradas iniciales
-  final List<RegisteredBankEntity> _banks = [
+  static final List<RegisteredBankEntity> _banks = [
     const RegisteredBankEntity(
       id: 'bank_bankos_global',
       name: 'Cuenta Global BankOs',
@@ -200,7 +238,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     ),
   ];
 
-  late final List<BankCardEntity> _cards = [
+  static final List<BankCardEntity> _cards = [
     const BankCardEntity(
       id: 'card_col_01',
       bankId: '4f2a0415-2697-42d7-878d-ab67a1f6a657',
@@ -269,7 +307,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     ),
   ];
 
-  final List<OperationRecordEntity> _history = [
+  static final List<OperationRecordEntity> _history = [
     // Cuenta Global BankOs
     OperationRecordEntity(
       id: 'tx_bos_01',
@@ -529,6 +567,41 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         );
       }
     }
+
+    for (final acc in _accounts) {
+      final hasCard = _cards.any(
+        (c) => c.accountId == acc.id || c.cardNumber == acc.accountNumber,
+      );
+      if (!hasCard) {
+        final bank = _banks
+                .where(
+                  (b) =>
+                      b.id == acc.tenantId ||
+                      b.tenantId == acc.tenantId ||
+                      b.slug
+                          .toLowerCase()
+                          .contains(acc.tenantId.toLowerCase()),
+                )
+                .firstOrNull ??
+            _banks.firstOrNull;
+
+        final holder = activeCustomerName ?? 'Cliente BankOS';
+        _cards.add(
+          BankCardEntity(
+            id: 'card_${acc.id}',
+            bankId: bank?.id ?? acc.tenantId,
+            bankName: bank?.name ?? 'Bancolombia',
+            cardNumber: acc.accountNumber,
+            cardHolder: holder,
+            cardType: BankCardType.debit,
+            availableBalance: acc.balance,
+            currency: acc.currency,
+            isActive: acc.isActive,
+            accountId: acc.id,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -706,16 +779,8 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         }).toList();
 
         if (realAccounts.isNotEmpty) {
-          for (final real in realAccounts) {
-            final idx = _accounts.indexWhere(
-              (a) => a.id == real.id || a.accountNumber == real.accountNumber,
-            );
-            if (idx != -1) {
-              _accounts[idx] = real;
-            } else {
-              _accounts.add(real);
-            }
-          }
+          _accounts.clear();
+          _accounts.addAll(realAccounts);
           _syncCardsWithAccounts();
           return List.unmodifiable(_accounts);
         }
@@ -792,11 +857,9 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
           );
         }).toList();
 
-        if (realHistory.isNotEmpty) {
-          _history.removeWhere((h) => realHistory.any((r) => r.id == h.id));
-          _history.insertAll(0, realHistory);
-          return List.unmodifiable(_history);
-        }
+        _history.clear();
+        _history.addAll(realHistory);
+        return List.unmodifiable(_history);
       }
     } catch (_) {}
     return List.unmodifiable(_history);
