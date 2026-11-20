@@ -468,7 +468,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           onPressed: _prevStep,
         ),
         title: Text(
-          _tr('Registro de cliente', 'Customer registration'),
+          _tr('Registro de Cliente', 'Customer Registration'),
           style: TextStyle(
             color: AppColors.primaryNavy,
             fontSize: 17,

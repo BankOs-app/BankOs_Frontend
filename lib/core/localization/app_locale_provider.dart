@@ -64,7 +64,7 @@ class Tr {
       _es(lang) ? 'Comenzar' : 'Get started';
   static String next(AppLanguage lang) => _es(lang) ? 'Siguiente' : 'Next';
   static String selectInstitution(AppLanguage lang) =>
-      _es(lang) ? 'Seleccionar entidad' : 'Select an institution';
+      _es(lang) ? 'Seleccionar Entidad' : 'Select an Institution';
   static String selectInstitutionSub(AppLanguage lang) => _es(lang)
       ? 'Conéctate a tu institución financiera para operar de forma segura.'
       : 'Choose your financial institution to bank securely.';
