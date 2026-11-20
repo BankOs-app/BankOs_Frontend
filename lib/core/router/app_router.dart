@@ -9,6 +9,7 @@ import '../../features/auth/presentation/screens/select_tenant_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/launch/presentation/screens/launch_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
+import '../../features/operations/presentation/screens/deposit_screen.dart';
 import '../../features/operations/presentation/screens/profile_screen.dart';
 import '../../features/operations/presentation/screens/transfer_screen.dart';
 import '../../features/operations/presentation/screens/withdraw_screen.dart';
@@ -22,6 +23,7 @@ abstract class AppRouter {
   static const String selectTenantPath = '/select-tenant';
   static const String homePath = '/home';
   static const String withdrawPath = '/withdraw';
+  static const String depositPath = '/deposit';
   static const String transferPath = '/transfer';
   static const String profilePath = '/profile';
   static const String adminPath = '/admin';
@@ -113,6 +115,14 @@ abstract class AppRouter {
             _buildFadePage(
           key: state.pageKey,
           child: const WithdrawScreen(),
+        ),
+      ),
+      GoRoute(
+        path: depositPath,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            _buildFadePage(
+          key: state.pageKey,
+          child: const DepositScreen(),
         ),
       ),
       GoRoute(

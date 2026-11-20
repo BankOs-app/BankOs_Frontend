@@ -203,30 +203,36 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEFF6FF),
-                              borderRadius: BorderRadius.circular(12),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.currency_exchange_rounded,
+                                color: Color(0xFF2563EB),
+                                size: 24,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.currency_exchange_rounded,
-                              color: Color(0xFF2563EB),
-                              size: 24,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                Tr.transferSummaryTitle(lang),
+                                style: TextStyle(
+                                  color: AppColors.primaryNavy,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            Tr.transferSummaryTitle(lang),
-                            style: TextStyle(
-                              color: AppColors.primaryNavy,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(
