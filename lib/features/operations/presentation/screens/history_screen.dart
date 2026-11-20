@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_locale_provider.dart';
 import '../../domain/entities/operation_record_entity.dart';
 import '../providers/operations_providers.dart';
+import '../widgets/transaction_detail_modal.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -28,7 +29,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Widget build(BuildContext context) {
     final lang = ref.watch(localeNotifierProvider);
     final state = ref.watch(operationsNotifierProvider);
-    final allHistory = state.history;
+    final allHistory = state.activeTenantHistory;
 
     final filteredList = allHistory.where((record) {
       final matchesFilter =
@@ -243,10 +244,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         amountColor = const Color(0xFFEF4444);
         break;
       case OperationType.internalTransfer:
-        icon = Icons.swap_horiz_rounded;
-        iconColor = AppColors.brandBlue;
-        iconBgColor = const Color(0xFFEFF6FF);
-        amountColor = AppColors.primaryNavy;
+        if (item.isCredit) {
+          icon = Icons.arrow_downward_rounded;
+          iconColor = const Color(0xFF059669);
+          iconBgColor = const Color(0xFFECFDF5);
+          amountColor = const Color(0xFF059669);
+        } else {
+          icon = Icons.swap_horiz_rounded;
+          iconColor = AppColors.brandBlue;
+          iconBgColor = const Color(0xFFEFF6FF);
+          amountColor = AppColors.primaryNavy;
+        }
         break;
       case OperationType.currencyExchange:
         icon = Icons.currency_exchange_rounded;
@@ -256,63 +264,66 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         break;
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              shape: BoxShape.circle,
+    return InkWell(
+      onTap: () => TransactionDetailModal.show(context, item, lang),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    style: const TextStyle(
+                      color: AppColors.primaryNavy,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.description,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  item.title,
-                  style: const TextStyle(
-                    color: AppColors.primaryNavy,
+                  item.formattedAmount,
+                  style: TextStyle(
+                    color: amountColor,
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  item.description,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
+                  '${item.timestamp.day} ${Tr.monthShort(lang, item.timestamp.month)} ${item.timestamp.year}',
+                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                item.formattedAmount,
-                style: TextStyle(
-                  color: amountColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${item.timestamp.day} ${Tr.monthShort(lang, item.timestamp.month)} ${item.timestamp.year}',
-                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

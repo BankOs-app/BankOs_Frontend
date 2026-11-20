@@ -2316,8 +2316,8 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                                   ? const Color(0xFFDC2626)
                                   : const Color(0xFF2563EB));
 
-                          final amountPrefix = isDeposit ? '+' : '-';
-                          final amountColor = isDeposit
+                          final isCredit = isDeposit || item.isCredit;
+                          final amountColor = isCredit
                               ? const Color(0xFF16A34A)
                               : (isWithdrawal
                                   ? const Color(0xFFDC2626)
@@ -2368,7 +2368,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '$amountPrefix${item.formattedAmount}',
+                                  item.formattedAmount,
                                   style: TextStyle(
                                     color: amountColor,
                                     fontSize: 13,

@@ -1,14 +1,23 @@
-import 'dart:io' show Platform;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
-
 abstract class ApiEndpoints {
   static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'https://bankosbackend-production.up.railway.app/api/v1',
   );
 
+  static String? _runtimeBaseUrl;
+
+  /// Default LAN Host for physical Android devices and local network clients.
+  /// Host PC running NestJS backend on port 3000.
+  static const String defaultLanHost = '10.1.21.6:3000';
+
+  static void setBaseUrl(String url) {
+    _runtimeBaseUrl = url.trim();
+  }
+
   static String get baseUrl {
+    if (_runtimeBaseUrl != null && _runtimeBaseUrl!.isNotEmpty) {
+      return _runtimeBaseUrl!;
+    }
     if (_configuredBaseUrl.isNotEmpty) return _configuredBaseUrl;
     return 'https://bankosbackend-production.up.railway.app/api/v1';
   }
