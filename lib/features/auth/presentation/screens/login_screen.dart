@@ -11,6 +11,7 @@ import '../../../operations/presentation/providers/operations_providers.dart';
 import '../providers/auth_providers.dart';
 import '../providers/auth_state.dart';
 import '../widgets/auth_text_field.dart';
+import '../widgets/biometric_auth_modal.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -87,6 +88,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _handleBiometricLogin() async {
     final lang = ref.read(localeNotifierProvider);
+    final operationsState = ref.read(operationsNotifierProvider);
+    final currentBank = operationsState.currentBank;
     final isApple =
         Theme.of(context).platform == TargetPlatform.iOS ||
         Theme.of(context).platform == TargetPlatform.macOS;
@@ -101,6 +104,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
       return;
     }
+
+    final enrolledUser =
+        AuthRemoteDataSourceImpl.getEnrolledUserForTenant(currentBank.slug);
+
+    final verified = await BiometricAuthModal.show(
+      context,
+      bankName: currentBank.name,
+      userEmail: enrolledUser.email,
+      userName: enrolledUser.name ?? 'Cliente BankOS',
+      isApple: isApple,
+      lang: lang,
+    );
+
+    if (!verified || !mounted) return;
 
     final success = await ref
         .read(authNotifierProvider.notifier)
@@ -119,6 +136,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       } else {
         context.go('/home');
       }
+    } else if (mounted) {
+      final errorMsg = ref.read(authNotifierProvider).errorMessage ??
+          (lang == AppLanguage.es
+              ? 'No se pudo verificar la biometría.'
+              : 'Could not verify biometrics.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 

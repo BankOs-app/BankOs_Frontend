@@ -85,34 +85,84 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required String tenantSlug,
   }) {
     activeCustomerName = fullName;
-    final accNumber =
-        '7007${(DateTime.now().millisecondsSinceEpoch % 1000000).toString().padLeft(6, '0')}';
+    final slug = tenantSlug.toLowerCase();
+    final prefix = slug.contains('bogota')
+        ? '10'
+        : (slug.contains('santander')
+            ? '90'
+            : (slug.contains('nu')
+                ? '80'
+                : (slug.contains('occidente') ? '50' : '70')));
+
+    final existingNumbers = _accounts.map((a) => a.accountNumber).toSet()
+      ..addAll(_cards.map((c) => c.cardNumber));
+
+    String accNumber = '';
+    int attempt = 0;
+    do {
+      attempt++;
+      final randomSuffix =
+          ((DateTime.now().microsecondsSinceEpoch + attempt * 7919) % 100000000)
+              .toString()
+              .padLeft(8, '0');
+      accNumber = '$prefix$randomSuffix';
+    } while (existingNumbers.contains(accNumber));
+
+    final bank = _banks
+            .where(
+              (b) =>
+                  b.slug.toLowerCase() == slug ||
+                  b.id == slug ||
+                  b.tenantId == slug,
+            )
+            .firstOrNull ??
+        _banks
+            .where(
+              (b) =>
+                  b.slug.toLowerCase().contains(slug) ||
+                  slug.contains(b.slug.toLowerCase()),
+            )
+            .firstOrNull ??
+        _banks.first;
+
+    final curr = bank.currency.isNotEmpty
+        ? bank.currency
+        : (slug.contains('santander') ? 'USD' : 'COP');
+    final accType =
+        curr == 'USD' ? 'Cuenta en Dólares (USD)' : 'Cuenta Débito';
+
     final newAcc = BankAccountEntity(
       id: 'acc_${DateTime.now().millisecondsSinceEpoch}',
       accountNumber: accNumber,
-      accountType: 'Cuenta Débito',
+      accountType: accType,
       balance: 0.00,
-      currency: 'COP',
+      currency: curr,
       isActive: true,
-      tenantId: 'tenant_banco_lombia',
+      tenantId: bank.tenantId.isNotEmpty ? bank.tenantId : 'tenant_$slug',
     );
     final newCard = BankCardEntity(
       id: 'card_${DateTime.now().millisecondsSinceEpoch}',
-      bankId: '4f2a0415-2697-42d7-878d-ab67a1f6a657',
-      bankName: 'Bancolombia',
+      bankId: bank.id,
+      bankName: bank.name,
       cardNumber: accNumber,
       cardHolder: fullName,
       cardType: BankCardType.debit,
       availableBalance: 0.00,
-      currency: 'COP',
+      currency: curr,
       accountId: newAcc.id,
     );
-    _accounts.removeWhere((a) => a.accountNumber == '7007007001');
+    _accounts.removeWhere(
+      (a) => a.accountNumber == '7007007001' || a.tenantId == newAcc.tenantId,
+    );
     _accounts.insert(0, newAcc);
-    _cards.removeWhere((c) => c.cardNumber == '7007007001');
+    _cards.removeWhere(
+      (c) => c.cardNumber == '7007007001' || c.bankId == newCard.bankId,
+    );
     _cards.insert(0, newCard);
-    _history.removeWhere((h) =>
-        h.originAccountId == 'acc_01' || h.destinationAccountId == 'acc_01');
+    _history.removeWhere(
+      (h) =>
+          h.originAccountId == 'acc_01' || h.destinationAccountId == 'acc_01',
+    );
   }
 
   // Cuentas locales de inicialización y contingencia

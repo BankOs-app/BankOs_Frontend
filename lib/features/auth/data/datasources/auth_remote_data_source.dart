@@ -33,6 +33,68 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   static String activeTransactionalPin = '1234';
   static bool isBiometricsEnabled = true;
 
+  static final Map<String, UserModel> _enrolledUsersByTenant = {};
+  static final Map<String, Map<String, String>> _enrolledCredentialsByTenant = {};
+
+  static UserModel getEnrolledUserForTenant(String? tenantSlug) {
+    final slug = (tenantSlug ?? activeTenantSlug ?? 'banco-lombia').toLowerCase();
+    if (_enrolledUsersByTenant.containsKey(slug)) {
+      return _enrolledUsersByTenant[slug]!;
+    }
+    if (slug.contains('nu')) {
+      return const UserModel(
+        id: 'usr_nu_001',
+        email: 'cliente@nu.com',
+        name: 'Catalina Restrepo',
+        token: 'demo_token_nu',
+        role: UserRole.client,
+      );
+    }
+    if (slug.contains('bogota')) {
+      return const UserModel(
+        id: 'usr_bogota_001',
+        email: 'carlos@bogota.com',
+        name: 'Carlos Gómez',
+        token: 'demo_token_bogota',
+        role: UserRole.client,
+      );
+    }
+    if (slug.contains('santander')) {
+      return const UserModel(
+        id: 'usr_santander_001',
+        email: 'john@santander.com',
+        name: 'John Smith',
+        token: 'demo_token_santander',
+        role: UserRole.client,
+      );
+    }
+    if (slug.contains('occidente')) {
+      return const UserModel(
+        id: 'usr_occ_001',
+        email: 'carlos@occidente.com',
+        name: 'Carlos Gómez',
+        token: 'demo_token_occidente',
+        role: UserRole.client,
+      );
+    }
+    if (slug.contains('global') || slug == 'bos' || slug == 'bankos') {
+      return const UserModel(
+        id: 'usr_admin_001',
+        email: 'admin@bankos.com',
+        name: 'Luigui Garizado',
+        token: 'demo_token_bankos',
+        role: UserRole.superAdmin,
+      );
+    }
+    return const UserModel(
+      id: 'usr_001',
+      email: 'cliente@bancolombia.com',
+      name: 'Alejandro Morales',
+      token: 'demo_token_bancolombia',
+      role: UserRole.client,
+    );
+  }
+
   AuthRemoteDataSourceImpl({required this.dioClient});
 
   String _inferTenant(String email) {
@@ -119,13 +181,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
         OperationsRemoteDataSourceImpl.activeCustomerName = displayName;
 
-        return UserModel(
+        final userModel = UserModel(
           id: userObj['userId'] as String? ?? 'usr_001',
           email: userObj['email'] as String? ?? cleanEmail,
           name: displayName,
           token: token,
           role: role,
         );
+        _enrolledUsersByTenant[tenantSlug] = userModel;
+        _enrolledCredentialsByTenant[tenantSlug] = {
+          'email': cleanEmail,
+          'password': cleanPassword,
+        };
+        return userModel;
       } else {
         throw ServerException(
           message:
@@ -180,13 +248,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
                   ? 'Alejandro Morales'
                   : cleanEmail.split('@')[0]);
 
-        return UserModel(
+        final fallbackUser = UserModel(
           id: cleanEmail.contains('admin') ? 'usr_admin_001' : 'usr_client_001',
           email: cleanEmail,
           name: displayName,
           token: 'demo_jwt_fallback_token',
           role: role,
         );
+        _enrolledUsersByTenant[tenantSlug] = fallbackUser;
+        _enrolledCredentialsByTenant[tenantSlug] = {
+          'email': cleanEmail,
+          'password': cleanPassword,
+        };
+        return fallbackUser;
       }
 
       if (isConnectionError) {
@@ -214,6 +288,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       );
     }
 
+    final activeSlug = activeTenantSlug ?? 'banco-lombia';
+    final creds = _enrolledCredentialsByTenant[activeSlug];
+
+    if (creds != null && creds['email'] != null && creds['password'] != null) {
+      try {
+        final loggedUser = await login(creds['email']!, creds['password']!);
+        return loggedUser;
+      } catch (_) {}
+    }
+
     // Si ya existe un token previo o sesión en curso, valida contexto
     final currentToken = DioClient.authToken;
     if (currentToken != null && currentToken.isNotEmpty) {
@@ -222,10 +306,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         if (response.statusCode == 200 && response.data != null) {
           final data = response.data as Map<String, dynamic>;
           final roleStr = (data['role'] as String?)?.toLowerCase();
-          return UserModel(
+          final user = UserModel(
             id: data['userId'] as String? ?? 'usr_001',
             email: data['email'] as String? ?? 'cliente@bancolombia.com',
-            name: 'Cliente BankOS',
+            name: (data['fullName'] ?? data['name']) as String? ?? 'Cliente BankOS',
             token: currentToken,
             role: roleStr == 'super_admin'
                 ? UserRole.superAdmin
@@ -233,13 +317,17 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
                 ? UserRole.admin
                 : UserRole.client,
           );
+          _enrolledUsersByTenant[activeSlug] = user;
+          OperationsRemoteDataSourceImpl.activeCustomerName = user.name;
+          return user;
         }
       } catch (_) {}
     }
 
-    throw ServerException(
-      message: Tr.biometricLoginRequired(LocaleNotifier.currentLanguage),
-    );
+    final enrolledUser = getEnrolledUserForTenant(activeSlug);
+    DioClient.setAuthToken(enrolledUser.token ?? 'demo_token_${enrolledUser.id}');
+    OperationsRemoteDataSourceImpl.activeCustomerName = enrolledUser.name;
+    return enrolledUser;
   }
 
   @override
@@ -301,7 +389,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
     } catch (_) {
       // Manejo de contingencia offline
-      return UserModel(
+      final offlineUser = UserModel(
         id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
         email: cleanEmail,
         name: fullName,
@@ -312,6 +400,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         role: UserRole.client,
         transactionalPin: cleanPin,
       );
+      _enrolledUsersByTenant[tenantSlug] = offlineUser;
+      _enrolledCredentialsByTenant[tenantSlug] = {
+        'email': cleanEmail,
+        'password': cleanPassword,
+      };
+      return offlineUser;
     }
 
     final user = await login(cleanEmail, cleanPassword);

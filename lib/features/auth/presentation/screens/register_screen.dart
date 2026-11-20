@@ -845,7 +845,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color(0xFF131D31),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
@@ -854,7 +854,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 value: _documentType,
                 isExpanded: true,
                 dropdownColor: Colors.white,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: const TextStyle(
+                  color: AppColors.primaryNavy,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
                 icon: const Icon(
                   Icons.keyboard_arrow_down_rounded,
                   color: AppColors.primaryNavy,
@@ -864,21 +868,45 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     value: 'Cédula de Ciudadanía (CC)',
                     child: Text(
                       _tr('Cédula de Ciudadanía (CC)', 'National ID (CC)'),
+                      style: const TextStyle(
+                        color: AppColors.primaryNavy,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   DropdownMenuItem(
                     value: 'Cédula de Extranjería (CE)',
                     child: Text(
                       _tr('Cédula de Extranjería (CE)', 'Foreigner ID (CE)'),
+                      style: const TextStyle(
+                        color: AppColors.primaryNavy,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   DropdownMenuItem(
                     value: 'Pasaporte (PAS)',
-                    child: Text(_tr('Pasaporte (PAS)', 'Passport (PAS)')),
+                    child: Text(
+                      _tr('Pasaporte (PAS)', 'Passport (PAS)'),
+                      style: const TextStyle(
+                        color: AppColors.primaryNavy,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                   DropdownMenuItem(
                     value: 'NIT / Empresa',
-                    child: Text(_tr('NIT Empresarial', 'Business tax ID')),
+                    child: Text(
+                      _tr('NIT Empresarial', 'Business tax ID'),
+                      style: const TextStyle(
+                        color: AppColors.primaryNavy,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ],
                 onChanged: (val) {
