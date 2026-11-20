@@ -62,6 +62,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         .login(email, password);
 
     if (success && mounted) {
+      ref.read(operationsNotifierProvider.notifier).switchActiveBankByEmail(email);
+      await ref.read(operationsNotifierProvider.notifier).loadInitialData();
+      if (!mounted) return;
       final user = ref.read(authNotifierProvider).user;
       if (user?.isAdmin == true) {
         context.go('/admin');
@@ -104,6 +107,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         .loginWithBiometrics();
 
     if (success && mounted) {
+      final loggedInEmail = ref.read(authNotifierProvider).user?.email;
+      if (loggedInEmail != null && loggedInEmail.isNotEmpty) {
+        ref.read(operationsNotifierProvider.notifier).switchActiveBankByEmail(loggedInEmail);
+      }
+      await ref.read(operationsNotifierProvider.notifier).loadInitialData();
+      if (!mounted) return;
       final user = ref.read(authNotifierProvider).user;
       if (user?.isAdmin == true) {
         context.go('/admin');

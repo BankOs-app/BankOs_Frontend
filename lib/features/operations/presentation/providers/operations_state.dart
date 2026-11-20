@@ -218,13 +218,19 @@ class OperationsState {
 
   /// Transaction history isolated strictly to the active tenant
   List<OperationRecordEntity> get activeTenantHistory {
-    final tenantAccIds = activeTenantAccounts.map((a) => a.id).toSet();
-    final tenantCardAccIds = activeTenantCards.map((c) => c.accountId).toSet();
+    final tenantAccIds = activeTenantAccounts
+        .expand((a) => [a.id, a.accountNumber])
+        .toSet();
+    final tenantCardAccIds = activeTenantCards
+        .expand((c) => [c.id, c.accountId, c.cardNumber])
+        .toSet();
     final allIds = {...tenantAccIds, ...tenantCardAccIds};
 
     final filtered = history.where((h) {
-      return allIds.contains(h.originAccountId) ||
-          allIds.contains(h.destinationAccountId);
+      return (h.originAccountId.isNotEmpty &&
+              allIds.contains(h.originAccountId)) ||
+          (h.destinationAccountId != null &&
+              allIds.contains(h.destinationAccountId));
     }).toList();
 
     if (filtered.isNotEmpty) return filtered;

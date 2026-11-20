@@ -453,6 +453,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildFigmaActionButton(
+                      icon: Icons.add_circle_outline_rounded,
+                      label: lang == AppLanguage.es ? 'Depositar' : 'Deposit',
+                      bgColor: const Color(0xFF10B981).withValues(alpha: 0.12),
+                      iconColor: const Color(0xFF10B981),
+                      onTap: () => context.go('/deposit'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildFigmaActionButton(
                       icon: Icons.remove_circle_outline_rounded,
                       label: Tr.withdraw(lang),
                       bgColor: currentBank.accentColor.withValues(alpha: 0.15),

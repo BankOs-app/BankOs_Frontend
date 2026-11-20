@@ -36,10 +36,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   String _inferTenant(String email) {
     final lower = email.toLowerCase();
-    if (activeTenantSlug != null && activeTenantSlug!.isNotEmpty) {
-      return activeTenantSlug == 'BOS' ? 'banco-lombia' : activeTenantSlug!;
+    if (lower.contains('bankos') || lower.contains('admin@bankos')) {
+      return 'banco-lombia';
     }
-    if (lower.contains('bankos')) return 'banco-lombia';
+    if (activeTenantSlug != null && activeTenantSlug!.isNotEmpty) {
+      final slugLower = activeTenantSlug!.toLowerCase();
+      if (slugLower == 'bos' || slugLower == 'bankos' || slugLower == 'bankos-global') {
+        return 'banco-lombia';
+      }
+      return activeTenantSlug!;
+    }
     if (lower.contains('bogota')) return 'banco-bogota';
     if (lower.contains('santander')) return 'banco-santander';
     if (lower.contains('nu.com') ||
