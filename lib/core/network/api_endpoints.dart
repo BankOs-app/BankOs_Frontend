@@ -1,11 +1,7 @@
-import 'dart:io' show Platform;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
-
 abstract class ApiEndpoints {
   static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: '',
+    defaultValue: 'https://bankosbackend-production.up.railway.app/api/v1',
   );
 
   static String? _runtimeBaseUrl;
@@ -23,11 +19,7 @@ abstract class ApiEndpoints {
       return _runtimeBaseUrl!;
     }
     if (_configuredBaseUrl.isNotEmpty) return _configuredBaseUrl;
-    if (kIsWeb) return 'http://localhost:3000/api/v1';
-    try {
-      if (Platform.isAndroid) return 'http://$defaultLanHost/api/v1';
-    } catch (_) {}
-    return 'http://localhost:3000/api/v1';
+    return 'https://bankosbackend-production.up.railway.app/api/v1';
   }
 
   // Legacy / Direct accessors
