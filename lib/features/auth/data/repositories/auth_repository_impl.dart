@@ -8,8 +8,8 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({required this.remoteDataSource});
 
   @override
-  Future<UserEntity> login(String email, String password) {
-    return remoteDataSource.login(email, password);
+  Future<UserEntity> login(String email, String password, {String? tenantSlug}) {
+    return remoteDataSource.login(email, password, tenantSlug: tenantSlug);
   }
 
   @override
@@ -30,6 +30,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String phone,
     required String password,
     String transactionalPin = '1234',
+    String? tenantSlug,
   }) {
     return remoteDataSource.register(
       fullName: fullName,
@@ -38,6 +39,7 @@ class AuthRepositoryImpl implements AuthRepository {
       phone: phone,
       password: password,
       transactionalPin: transactionalPin,
+      tenantSlug: tenantSlug,
     );
   }
 }

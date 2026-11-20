@@ -76,6 +76,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
   final DioClient dioClient;
 
   static String? activeCustomerName;
+  static bool _isNewUserSession = false;
 
   OperationsRemoteDataSourceImpl({required this.dioClient});
 
@@ -85,6 +86,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required String tenantSlug,
   }) {
     activeCustomerName = fullName;
+    _isNewUserSession = true;
     final slug = tenantSlug.toLowerCase();
     final prefix = slug.contains('bogota')
         ? '10'
@@ -94,8 +96,15 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
                 ? '80'
                 : (slug.contains('occidente') ? '50' : '70')));
 
-    final existingNumbers = _accounts.map((a) => a.accountNumber).toSet()
-      ..addAll(_cards.map((c) => c.cardNumber));
+    final existingNumbers = <String>{
+      '7007007001',
+      '1001001001',
+      '1001001002',
+      '9009009001',
+      '8008008001',
+      '5005005001',
+      '1001001000',
+    };
 
     String accNumber = '';
     int attempt = 0;
@@ -113,7 +122,8 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
               (b) =>
                   b.slug.toLowerCase() == slug ||
                   b.id == slug ||
-                  b.tenantId == slug,
+                  b.tenantId == slug ||
+                  b.code.toLowerCase() == slug,
             )
             .firstOrNull ??
         _banks
@@ -138,7 +148,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       balance: 0.00,
       currency: curr,
       isActive: true,
-      tenantId: bank.tenantId.isNotEmpty ? bank.tenantId : 'tenant_$slug',
+      tenantId: bank.tenantId.isNotEmpty ? bank.tenantId : bank.id,
     );
     final newCard = BankCardEntity(
       id: 'card_${DateTime.now().millisecondsSinceEpoch}',
@@ -151,22 +161,38 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       currency: curr,
       accountId: newAcc.id,
     );
-    _accounts.removeWhere(
-      (a) => a.accountNumber == '7007007001' || a.tenantId == newAcc.tenantId,
-    );
-    _accounts.insert(0, newAcc);
-    _cards.removeWhere(
-      (c) => c.cardNumber == '7007007001' || c.bankId == newCard.bankId,
-    );
-    _cards.insert(0, newCard);
-    _history.removeWhere(
-      (h) =>
-          h.originAccountId == 'acc_01' || h.destinationAccountId == 'acc_01',
-    );
+
+    // AISLAMIENTO ESTRICTO PARA NUEVO USUARIO REGISTRADO:
+    // Cuenta con saldo 0.00, tarjeta con número único propio y 0 transacciones preexistentes.
+    _accounts.clear();
+    _accounts.add(newAcc);
+    _cards.clear();
+    _cards.add(newCard);
+    _history.clear();
+  }
+
+  static void onUserLogout() {
+    activeCustomerName = null;
+    _isNewUserSession = false;
+    _restoreDefaultSeedData();
+  }
+
+  static void restoreDemoSession(String email) {
+    _isNewUserSession = false;
+    _restoreDefaultSeedData();
+  }
+
+  static void _restoreDefaultSeedData() {
+    _accounts.clear();
+    _accounts.addAll(_seedAccounts);
+    _cards.clear();
+    _cards.addAll(_seedCards);
+    _history.clear();
+    _history.addAll(_seedHistory);
   }
 
   // Cuentas locales de inicialización y contingencia
-  static final List<BankAccountEntity> _accounts = [
+  static final List<BankAccountEntity> _seedAccounts = [
     const BankAccountEntity(
       id: 'acc_01',
       accountNumber: '7007007001',
@@ -222,6 +248,8 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       tenantId: 'tenant_bankos_global',
     ),
   ];
+
+  static final List<BankAccountEntity> _accounts = List.of(_seedAccounts);
 
   // Instituciones registradas iniciales
   static final List<RegisteredBankEntity> _banks = [
@@ -288,7 +316,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     ),
   ];
 
-  static final List<BankCardEntity> _cards = [
+  static final List<BankCardEntity> _seedCards = [
     const BankCardEntity(
       id: 'card_col_01',
       bankId: '4f2a0415-2697-42d7-878d-ab67a1f6a657',
@@ -357,7 +385,9 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     ),
   ];
 
-  static final List<OperationRecordEntity> _history = [
+  static final List<BankCardEntity> _cards = List.of(_seedCards);
+
+  static final List<OperationRecordEntity> _seedHistory = [
     // Cuenta Global BankOs
     OperationRecordEntity(
       id: 'tx_bos_01',
@@ -548,6 +578,8 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       originAccountId: 'acc_nu_01',
     ),
   ];
+
+  static final List<OperationRecordEntity> _history = List.of(_seedHistory);
 
   String _resolveTenantSlug(String? accountIdentifier) {
     if (accountIdentifier != null) {
@@ -973,6 +1005,9 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         return List.unmodifiable(_history);
       }
     } catch (_) {}
+    if (_isNewUserSession && _history.isEmpty) {
+      return const [];
+    }
     return List.unmodifiable(_history);
   }
 

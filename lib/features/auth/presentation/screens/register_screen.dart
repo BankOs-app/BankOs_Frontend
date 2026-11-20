@@ -6,6 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_locale_provider.dart';
 import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../operations/presentation/providers/operations_providers.dart';
+import '../../data/datasources/auth_remote_data_source.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/auth_text_field.dart';
 
@@ -265,6 +266,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final password = _passwordController.text;
     final pin = _pinController.text.trim();
 
+    final currentBank = ref.read(operationsNotifierProvider).currentBank;
+    AuthRemoteDataSourceImpl.activeTenantSlug = currentBank.slug;
+
     setState(() {
       _isLoading = true;
     });
@@ -278,6 +282,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           phone: phone,
           password: password,
           transactionalPin: pin,
+          tenantSlug: currentBank.slug,
         );
 
     setState(() {
@@ -342,9 +347,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             actions: [
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(context);
-                  context.go('/home');
+                  ref
+                      .read(operationsNotifierProvider.notifier)
+                      .switchActiveBankByEmail(email);
+                  await ref
+                      .read(operationsNotifierProvider.notifier)
+                      .loadInitialData();
+                  if (context.mounted) {
+                    context.go('/home');
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryNavy,

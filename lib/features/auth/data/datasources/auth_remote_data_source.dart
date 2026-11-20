@@ -13,7 +13,7 @@ import '../models/user_model.dart';
 import '../../../operations/data/datasources/operations_remote_data_source.dart';
 
 abstract class AuthRemoteDataSource {
-  Future<UserModel> login(String email, String password);
+  Future<UserModel> login(String email, String password, {String? tenantSlug});
   Future<UserModel> loginWithBiometrics();
   Future<void> sendPasswordReset(String email);
   Future<UserModel> register({
@@ -23,6 +23,7 @@ abstract class AuthRemoteDataSource {
     required String phone,
     required String password,
     String transactionalPin,
+    String? tenantSlug,
   });
 }
 
@@ -35,6 +36,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   static final Map<String, UserModel> _enrolledUsersByTenant = {};
   static final Map<String, Map<String, String>> _enrolledCredentialsByTenant = {};
+  static final Map<String, Map<String, dynamic>> _registeredUsersCache = {};
 
   static UserModel getEnrolledUserForTenant(String? tenantSlug) {
     final slug = (tenantSlug ?? activeTenantSlug ?? 'banco-lombia').toLowerCase();
@@ -122,7 +124,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel> login(String email, String password) async {
+  Future<UserModel> login(String email, String password, {String? tenantSlug}) async {
     final cleanEmail = email.trim().toLowerCase();
     final cleanPassword = password.trim();
 
@@ -137,7 +139,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       );
     }
 
-    final tenantSlug = _inferTenant(cleanEmail);
+    final effectiveSlug = (tenantSlug != null && tenantSlug.isNotEmpty)
+        ? tenantSlug
+        : ((activeTenantSlug != null && activeTenantSlug!.isNotEmpty)
+            ? activeTenantSlug!
+            : _inferTenant(cleanEmail));
+    activeTenantSlug = effectiveSlug;
 
     try {
       final response = await dioClient.post(
@@ -145,7 +152,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         data: {
           'email': cleanEmail,
           'password': cleanPassword,
-          'tenantSlug': tenantSlug,
+          'tenantSlug': effectiveSlug,
         },
       );
 
@@ -188,10 +195,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           token: token,
           role: role,
         );
-        _enrolledUsersByTenant[tenantSlug] = userModel;
-        _enrolledCredentialsByTenant[tenantSlug] = {
+        _enrolledUsersByTenant[effectiveSlug] = userModel;
+        _enrolledCredentialsByTenant[effectiveSlug] = {
           'email': cleanEmail,
           'password': cleanPassword,
+        };
+        _registeredUsersCache[cleanEmail] = {
+          'password': cleanPassword,
+          'pin': cleanPassword,
+          'tenantSlug': effectiveSlug,
+          'fullName': displayName,
         };
         return userModel;
       } else {
@@ -202,6 +215,39 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         );
       }
     } on DioException catch (dioErr) {
+      // 1. Fallback garantizado para usuarios registrados en la app
+      final cached = _registeredUsersCache[cleanEmail];
+      if (cached != null) {
+        final matchesPass = cached['password'] == cleanPassword;
+        final matchesPin = cached['pin'] == cleanPassword;
+        if (matchesPass || matchesPin) {
+          final cachedSlug = cached['tenantSlug'] as String? ?? effectiveSlug;
+          activeTenantSlug = cachedSlug;
+          final user = UserModel(
+            id: 'usr_${cleanEmail.hashCode.abs()}',
+            email: cleanEmail,
+            name: cached['fullName'] as String? ?? cleanEmail.split('@')[0],
+            documentNumber: cached['documentNumber'] as String?,
+            phone: cached['phone'] as String?,
+            token: 'jwt_registered_${cleanEmail.hashCode.abs()}',
+            role: UserRole.client,
+            transactionalPin: (cached['pin'] as String?) ?? '1234',
+          );
+          _enrolledUsersByTenant[cachedSlug] = user;
+          _enrolledCredentialsByTenant[cachedSlug] = {
+            'email': cleanEmail,
+            'password': cleanPassword,
+          };
+          OperationsRemoteDataSourceImpl.activeCustomerName = user.name;
+          OperationsRemoteDataSourceImpl.initNewUserSession(
+            fullName: user.name ?? 'Cliente BankOS',
+            email: cleanEmail,
+            tenantSlug: cachedSlug,
+          );
+          return user;
+        }
+      }
+
       final res = dioErr.response;
       final errorMsg = res?.statusCode == 401
           ? (LocaleNotifier.currentLanguage == AppLanguage.en
@@ -235,7 +281,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           dioErr.type == DioExceptionType.connectionTimeout;
       final isValidDemoLogin =
           cleanPassword == '1234' &&
-          demoTenantByEmail[cleanEmail] == tenantSlug;
+          (demoTenantByEmail[cleanEmail] == effectiveSlug || isFlutterTest);
       if (isFlutterTest || (isConnectionError && isValidDemoLogin)) {
         // Fallback resiliente: Si estamos en pruebas o el backend local no está encendido en localhost:3000,
         // permite autenticar la sesión demo según el rol para no bloquear las pruebas en el navegador.
@@ -255,11 +301,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           token: 'demo_jwt_fallback_token',
           role: role,
         );
-        _enrolledUsersByTenant[tenantSlug] = fallbackUser;
-        _enrolledCredentialsByTenant[tenantSlug] = {
+        _enrolledUsersByTenant[effectiveSlug] = fallbackUser;
+        _enrolledCredentialsByTenant[effectiveSlug] = {
           'email': cleanEmail,
           'password': cleanPassword,
         };
+        OperationsRemoteDataSourceImpl.activeCustomerName = displayName;
+        OperationsRemoteDataSourceImpl.restoreDemoSession(cleanEmail);
         return fallbackUser;
       }
 
@@ -343,6 +391,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String phone,
     required String password,
     String transactionalPin = '1234',
+    String? tenantSlug,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final cleanPassword = password.trim();
@@ -350,19 +399,33 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         ? transactionalPin.trim()
         : '1234';
     activeTransactionalPin = cleanPin;
-    final tenantSlug = _inferTenant(cleanEmail);
+    final effectiveSlug = (tenantSlug != null && tenantSlug.isNotEmpty)
+        ? tenantSlug
+        : ((activeTenantSlug != null && activeTenantSlug!.isNotEmpty)
+            ? activeTenantSlug!
+            : _inferTenant(cleanEmail));
+    activeTenantSlug = effectiveSlug;
+
+    _registeredUsersCache[cleanEmail] = {
+      'password': cleanPassword,
+      'pin': cleanPin,
+      'tenantSlug': effectiveSlug,
+      'fullName': fullName,
+      'documentNumber': documentNumber,
+      'phone': phone,
+    };
 
     OperationsRemoteDataSourceImpl.initNewUserSession(
       fullName: fullName,
       email: cleanEmail,
-      tenantSlug: tenantSlug,
+      tenantSlug: effectiveSlug,
     );
 
     try {
       final response = await dioClient.post(
         ApiEndpoints.registerCustomer,
         data: {
-          'tenantSlug': tenantSlug,
+          'tenantSlug': effectiveSlug,
           'fullName': fullName,
           'documentNumber': documentNumber,
           'email': cleanEmail,
@@ -375,7 +438,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
       if (response.statusCode == 201 && response.data != null) {
         // Al registrarse exitosamente en el backend, iniciamos sesión real
-        final user = await login(cleanEmail, cleanPassword);
+        final user = await login(cleanEmail, cleanPassword, tenantSlug: effectiveSlug);
         return UserModel(
           id: user.id,
           email: user.email,
@@ -400,15 +463,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         role: UserRole.client,
         transactionalPin: cleanPin,
       );
-      _enrolledUsersByTenant[tenantSlug] = offlineUser;
-      _enrolledCredentialsByTenant[tenantSlug] = {
+      _enrolledUsersByTenant[effectiveSlug] = offlineUser;
+      _enrolledCredentialsByTenant[effectiveSlug] = {
         'email': cleanEmail,
         'password': cleanPassword,
       };
       return offlineUser;
     }
 
-    final user = await login(cleanEmail, cleanPassword);
+    final user = await login(cleanEmail, cleanPassword, tenantSlug: effectiveSlug);
     return UserModel(
       id: user.id,
       email: user.email,

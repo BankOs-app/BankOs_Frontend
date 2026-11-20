@@ -1,7 +1,7 @@
 import '../entities/user_entity.dart';
 
 abstract class AuthRepository {
-  Future<UserEntity> login(String email, String password);
+  Future<UserEntity> login(String email, String password, {String? tenantSlug});
   Future<UserEntity> loginWithBiometrics();
   Future<void> sendPasswordReset(String email);
   Future<UserEntity> register({
@@ -11,5 +11,6 @@ abstract class AuthRepository {
     required String phone,
     required String password,
     String transactionalPin,
+    String? tenantSlug,
   });
 }

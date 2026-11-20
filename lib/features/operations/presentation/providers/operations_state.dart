@@ -166,7 +166,10 @@ class OperationsState {
         .where(
           (account) =>
               account.tenantId == currentBank.id ||
-              account.tenantId == currentBank.tenantId,
+              account.tenantId == currentBank.tenantId ||
+              account.tenantId == currentBank.slug ||
+              account.tenantId.toLowerCase().contains(currentBank.slug.toLowerCase()) ||
+              currentBank.slug.toLowerCase().contains(account.tenantId.toLowerCase()),
         )
         .toList();
     if (list.isNotEmpty) return list;
@@ -175,27 +178,49 @@ class OperationsState {
     final sessionAccountIds = activeTenantCards
         .expand((card) => [card.accountId, card.cardNumber])
         .toSet();
-    return accounts
+    final linked = accounts
         .where(
           (account) =>
               sessionAccountIds.contains(account.id) ||
               sessionAccountIds.contains(account.accountNumber),
         )
         .toList();
+    if (linked.isNotEmpty) return linked;
+    if (accounts.length == 1) return accounts;
+    return [];
   }
 
   /// Cards isolated to the active bank / tenant
   List<BankCardEntity> get activeTenantCards {
     final bankId = currentBank.id;
-    return cards.where((c) => c.bankId == bankId).toList();
+    final slug = currentBank.slug.toLowerCase();
+    final list = cards.where((c) {
+      if (c.bankId == bankId) return true;
+      if (c.bankId == currentBank.tenantId) return true;
+      final bankName = c.bankName.toLowerCase();
+      final currentName = currentBank.name.toLowerCase();
+      return bankName.contains(currentName) ||
+          currentName.contains(bankName) ||
+          (slug.contains('lombia') && bankName.contains('lombia')) ||
+          (slug.contains('bogota') && bankName.contains('bogot')) ||
+          (slug.contains('santander') && bankName.contains('santander')) ||
+          (slug.contains('nu') && bankName.contains('nu'));
+    }).toList();
+    if (list.isNotEmpty) return list;
+    if (cards.length == 1) return cards;
+    return [];
   }
 
   /// Primary card or account of the active tenant
   BankCardEntity? get primaryCard =>
-      activeTenantCards.isNotEmpty ? activeTenantCards.first : null;
+      activeTenantCards.isNotEmpty
+          ? activeTenantCards.first
+          : (cards.isNotEmpty ? cards.first : null);
 
   BankAccountEntity? get primaryAccount =>
-      activeTenantAccounts.isNotEmpty ? activeTenantAccounts.first : null;
+      activeTenantAccounts.isNotEmpty
+          ? activeTenantAccounts.first
+          : (accounts.isNotEmpty ? accounts.first : null);
 
   String get activeCurrency => currentBank.currency;
 

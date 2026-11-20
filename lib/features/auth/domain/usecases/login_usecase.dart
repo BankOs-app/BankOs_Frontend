@@ -5,10 +5,12 @@ import '../repositories/auth_repository.dart';
 class LoginParams {
   final String email;
   final String password;
+  final String? tenantSlug;
 
   const LoginParams({
     required this.email,
     required this.password,
+    this.tenantSlug,
   });
 }
 
@@ -19,6 +21,6 @@ class LoginUseCase implements UseCase<UserEntity, LoginParams> {
 
   @override
   Future<UserEntity> call(LoginParams params) {
-    return repository.login(params.email, params.password);
+    return repository.login(params.email, params.password, tenantSlug: params.tenantSlug);
   }
 }

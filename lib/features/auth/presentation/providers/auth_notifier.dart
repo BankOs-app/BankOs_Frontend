@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/user_facing_error.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../operations/data/datasources/operations_remote_data_source.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/usecases/login_usecase.dart';
 import 'auth_providers.dart';
@@ -12,12 +13,12 @@ class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() => const AuthState();
 
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String email, String password, {String? tenantSlug}) async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
       final loginUseCase = ref.read(loginUseCaseProvider);
       final rawUser = await loginUseCase(
-        LoginParams(email: email, password: password),
+        LoginParams(email: email, password: password, tenantSlug: tenantSlug),
       );
       final user = UserEntity(
         id: rawUser.id,
@@ -39,6 +40,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void logout() {
     DioClient.setAuthToken(null);
+    OperationsRemoteDataSourceImpl.onUserLogout();
     state = const AuthState();
   }
 
@@ -63,6 +65,7 @@ class AuthNotifier extends Notifier<AuthState> {
     required String phone,
     required String password,
     String transactionalPin = '1234',
+    String? tenantSlug,
   }) async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
@@ -74,6 +77,7 @@ class AuthNotifier extends Notifier<AuthState> {
         phone: phone,
         password: password,
         transactionalPin: transactionalPin,
+        tenantSlug: tenantSlug,
       );
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
       return true;

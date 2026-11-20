@@ -59,9 +59,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    final operationsState = ref.read(operationsNotifierProvider);
+    final currentBank = operationsState.currentBank;
+    AuthRemoteDataSourceImpl.activeTenantSlug = currentBank.slug;
+
     final success = await ref
         .read(authNotifierProvider.notifier)
-        .login(email, password);
+        .login(email, password, tenantSlug: currentBank.slug);
 
     if (success && mounted) {
       ref.read(operationsNotifierProvider.notifier).switchActiveBankByEmail(email);
