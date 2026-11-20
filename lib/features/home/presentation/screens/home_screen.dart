@@ -29,9 +29,17 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentNavIndex = 0;
   bool _isBalanceVisible = true;
-  bool _hasUnreadNotifications = true;
+  final Set<String> _readTransactionIds = {};
+  bool _allRead = false;
   final PageController _cardPageController =
       PageController(viewportFraction: 1.0);
+
+  bool get _hasUnreadNotifications {
+    if (_allRead) return false;
+    final operationsState = ref.watch(operationsNotifierProvider);
+    if (operationsState.history.isEmpty) return false;
+    return operationsState.history.any((tx) => !_readTransactionIds.contains(tx.id));
+  }
 
   @override
   void dispose() {
@@ -276,7 +284,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             constraints: const BoxConstraints(),
                             onPressed: () {
                               setState(() {
-                                _hasUnreadNotifications = false;
+                                _allRead = true;
+                                _readTransactionIds.addAll(
+                                  operationsState.history.map((tx) => tx.id),
+                                );
                               });
                               NotificationsModal.show(
                                 context: context,

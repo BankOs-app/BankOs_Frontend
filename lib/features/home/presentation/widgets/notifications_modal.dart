@@ -114,6 +114,11 @@ class _NotificationsModalState extends State<NotificationsModal> {
   }
 
   void _buildNotificationList() {
+    if (widget.history.isEmpty) {
+      _items = [];
+      return;
+    }
+
     final list = <NotificationItemData>[];
     final isEs = widget.lang == AppLanguage.es;
 
@@ -304,9 +309,11 @@ class _NotificationsModalState extends State<NotificationsModal> {
                         ),
                       ),
                       Text(
-                        isEs
-                            ? '${_items.length} avisos en ${widget.currentBank.name}'
-                            : '${_items.length} alerts in ${widget.currentBank.name}',
+                        _items.isEmpty
+                            ? (isEs ? 'Sin notificaciones' : 'No notifications')
+                            : (isEs
+                                ? '${_items.length} avisos en ${widget.currentBank.name}'
+                                : '${_items.length} alerts in ${widget.currentBank.name}'),
                         style: const TextStyle(
                           color: Color(0xFF64748B),
                           fontSize: 12,
@@ -315,21 +322,22 @@ class _NotificationsModalState extends State<NotificationsModal> {
                     ],
                   ),
                 ),
-                TextButton(
-                  onPressed: _markAllAsRead,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    minimumSize: Size.zero,
-                  ),
-                  child: Text(
-                    isEs ? 'Leídas' : 'Mark read',
-                    style: const TextStyle(
-                      color: Color(0xFF2563EB),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                if (_items.isNotEmpty)
+                  TextButton(
+                    onPressed: _markAllAsRead,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      minimumSize: Size.zero,
+                    ),
+                    child: Text(
+                      isEs ? 'Leídas' : 'Mark read',
+                      style: const TextStyle(
+                        color: Color(0xFF2563EB),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -369,19 +377,30 @@ class _NotificationsModalState extends State<NotificationsModal> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.notifications_off_outlined,
-                          size: 44,
+                          Icons.notifications_none_rounded,
+                          size: 48,
                           color: Color(0xFF94A3B8),
                         ),
                         const SizedBox(height: 12),
                         Text(
                           isEs
-                              ? 'No hay notificaciones en esta categoría'
-                              : 'No notifications in this category',
+                              ? 'No tienes notificaciones pendientes'
+                              : 'You have no pending notifications',
+                          style: const TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          isEs
+                              ? 'Aquí verás los avisos de tus transferencias y movimientos en tiempo real.'
+                              : 'Real-time alerts for your transfers and activity will appear here.',
                           style: const TextStyle(
                             color: Color(0xFF64748B),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
                           ),
                           textAlign: TextAlign.center,
                         ),
