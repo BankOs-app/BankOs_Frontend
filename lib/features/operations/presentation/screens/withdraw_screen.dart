@@ -4,8 +4,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_locale_provider.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../domain/entities/bank_card_entity.dart';
-import '../../domain/entities/registered_bank_entity.dart';
 import '../../domain/entities/static_exchange_rate.dart';
 import '../providers/operations_providers.dart';
 import '../providers/operations_state.dart';
@@ -23,9 +23,42 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _conceptController = TextEditingController();
 
-  RegisteredBankEntity? _selectedBank;
-  BankCardEntity? _selectedCard;
   String? _withdrawCurrency;
+  String? _currencyBankId;
+  String? _currencyCardId;
+
+  BankCardEntity? _sessionAccountCard(
+    OperationsState state,
+    String? customerName,
+  ) {
+    final bank = state.currentBank;
+    if (customerName == null || customerName.trim().isEmpty) return null;
+
+    final ownedCard = state
+        .getCardsForBank(bank.id)
+        .where(
+          (card) =>
+              card.cardHolder.trim().toLowerCase() ==
+              customerName.trim().toLowerCase(),
+        )
+        .firstOrNull;
+    if (ownedCard != null) return ownedCard;
+
+    final account = state.activeTenantAccounts.firstOrNull;
+    if (account == null) return null;
+    return BankCardEntity(
+      id: account.id,
+      bankId: bank.id,
+      bankName: bank.name,
+      cardNumber: account.accountNumber,
+      cardHolder: customerName,
+      cardType: BankCardType.debit,
+      availableBalance: account.balance,
+      currency: account.currency,
+      isActive: account.isActive,
+      accountId: account.id,
+    );
+  }
 
   @override
   void initState() {
@@ -46,8 +79,9 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-            isError ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+        backgroundColor: isError
+            ? const Color(0xFFEF4444)
+            : const Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -55,32 +89,30 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   }
 
   Future<void> _submitWithdrawal() async {
-    final bank = _selectedBank;
-    if (bank == null) {
-      _showSnackBar('Selecciona un banco registrado.');
-      return;
-    }
-
-    final card = _selectedCard;
+    final lang = ref.read(localeNotifierProvider);
+    final session = ref.read(operationsNotifierProvider);
+    final bank = session.currentBank;
+    final customerName = ref.read(authNotifierProvider).user?.name;
+    final card = _sessionAccountCard(session, customerName);
     if (card == null) {
-      _showSnackBar('Selecciona una tarjeta anexada a este banco.');
+      _showSnackBar(Tr.withdrawNoAccount(lang));
       return;
     }
 
     if (!card.isActive) {
-      _showSnackBar('La tarjeta seleccionada no se encuentra activa.');
+      _showSnackBar(Tr.withdrawInactiveAccount(lang));
       return;
     }
 
     final amountText = _amountController.text.trim();
     final amount = double.tryParse(amountText);
     if (amount == null) {
-      _showSnackBar('Ingresa un monto numérico válido.');
+      _showSnackBar(Tr.withdrawInvalidAmount(lang));
       return;
     }
 
     if (amount <= 0) {
-      _showSnackBar('El monto a retirar debe ser estrictamente positivo.');
+      _showSnackBar(Tr.withdrawPositiveAmount(lang));
       return;
     }
 
@@ -94,7 +126,14 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
 
     if (requiredDebit > card.availableBalance) {
       _showSnackBar(
-        'Saldo insuficiente en la tarjeta (${card.formattedBalance}). Se requieren \$${requiredDebit.toStringAsFixed(2)} ${card.currency} para retirar \$${amount.toStringAsFixed(2)} $withdrawCurr.',
+        Tr.withdrawInsufficientFunds(
+          lang,
+          card.formattedBalance,
+          '\$${requiredDebit.toStringAsFixed(2)}',
+          '\$${amount.toStringAsFixed(2)}',
+          card.currency,
+          withdrawCurr,
+        ),
       );
       return;
     }
@@ -102,7 +141,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     final brandAccent = bank.accentColor;
     final authorized = await TransactionPinModal.show(
       context,
-      title: 'Retiro desde ${bank.name}',
+      title: Tr.withdrawPinTitle(lang, bank.name),
       amountFormatted: '$withdrawCurr $amountText',
       accentColor: brandAccent,
     );
@@ -117,7 +156,11 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
           withdrawCurrency: withdrawCurr,
           concept: _conceptController.text.trim().isNotEmpty
               ? _conceptController.text.trim()
-              : 'Retiro en $withdrawCurr desde ${card.cardTypeLabel}',
+              : Tr.withdrawDefaultConcept(
+                  lang,
+                  withdrawCurr,
+                  Tr.cardType(lang, card.cardType == BankCardType.credit),
+                ),
         );
 
     if (mounted) {
@@ -131,14 +174,17 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Row(
+            title: Row(
               children: [
-                Icon(Icons.check_circle_rounded,
-                    color: Color(0xFF10B981), size: 28),
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF10B981),
+                  size: 28,
+                ),
                 SizedBox(width: 10),
                 Text(
-                  '¡Retiro Exitoso!',
-                  style: TextStyle(
+                  Tr.withdrawSuccessTitle(lang),
+                  style: const TextStyle(
                     color: AppColors.primaryNavy,
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
@@ -147,9 +193,16 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
               ],
             ),
             content: Text(
-              'Has retirado \$${amount.toStringAsFixed(2)} $withdrawCurr exitosamente desde ${bank.name}.',
+              Tr.withdrawSuccessMessage(
+                lang,
+                '\$${amount.toStringAsFixed(2)}',
+                withdrawCurr,
+                bank.name,
+              ),
               style: const TextStyle(
-                  color: AppColors.textSecondary, fontSize: 13),
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
             ),
             actions: [
               ElevatedButton(
@@ -164,7 +217,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Aceptar'),
+                child: Text(Tr.accept(lang)),
               ),
             ],
           ),
@@ -172,8 +225,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
         _amountController.clear();
         _conceptController.clear();
       } else {
-        _showSnackBar(
-            state.errorMessage ?? 'Ocurrió un error al procesar el retiro.');
+        _showSnackBar(state.errorMessage ?? Tr.genericError(lang));
       }
     }
   }
@@ -182,18 +234,15 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   Widget build(BuildContext context) {
     final lang = ref.watch(localeNotifierProvider);
     final operationsState = ref.watch(operationsNotifierProvider);
-    final banks = operationsState.banks;
-
-    if (_selectedBank == null && banks.isNotEmpty) {
-      _selectedBank = operationsState.currentBank;
+    final customerName = ref.watch(authNotifierProvider).user?.name;
+    final bank = operationsState.currentBank;
+    final card = _sessionAccountCard(operationsState, customerName);
+    if (_currencyBankId != bank.id || _currencyCardId != card?.id) {
+      _currencyBankId = bank.id;
+      _currencyCardId = card?.id;
+      _withdrawCurrency = card?.currency ?? bank.currency;
     }
-
-    final availableCards = _selectedBank != null
-        ? operationsState.getCardsForBank(_selectedBank!.id)
-        : <BankCardEntity>[];
-
-    _withdrawCurrency ??=
-        _selectedCard?.currency ?? _selectedBank?.currency ?? 'COP';
+    _withdrawCurrency ??= card?.currency ?? bank.currency;
 
     final effectiveWithdrawCurrency = _withdrawCurrency!;
 
@@ -205,8 +254,11 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new,
-              color: AppColors.primaryNavy, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.primaryNavy,
+            size: 20,
+          ),
           onPressed: () => context.go('/home'),
         ),
         title: Text(
@@ -224,271 +276,222 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 12.0,
+              ),
               child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. BANCO REGISTRADO
-              Text(
-                Tr.withdrawBankLabel(lang),
-                style: const TextStyle(
-                  color: AppColors.primaryNavy,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.softBackground,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<RegisteredBankEntity>(
-                    value: _selectedBank,
-                    dropdownColor: Colors.white,
-                    isExpanded: true,
-                    hint: const Text('Selecciona un banco registrado',
-                        style: TextStyle(
-                            color: Color(0xFF94A3B8), fontSize: 13)),
-                    icon: const Icon(Icons.keyboard_arrow_down,
-                        color: AppColors.primaryNavy),
-                    items: banks.map((bank) {
-                      return DropdownMenuItem<RegisteredBankEntity>(
-                        value: bank,
-                        child: Text(
-                          '${bank.name} (${bank.currency})',
-                          style: const TextStyle(
-                            color: AppColors.primaryNavy,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (bank) {
-                      setState(() {
-                        _selectedBank = bank;
-                        _selectedCard = null;
-                        if (bank != null) {
-                          _withdrawCurrency = bank.currency;
-                        }
-                      });
-                    },
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              // 2. TARJETAS ANEXADAS A ESTE BANCO
-              Text(
-                Tr.withdrawCardLabel(lang),
-                style: const TextStyle(
-                  color: AppColors.primaryNavy,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              if (availableCards.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.softBackground,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<BankCardEntity>(
-                      value: _selectedCard,
-                      hint: const Text(
-                        'Selecciona número de cuenta a debitar...',
-                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                      ),
-                      dropdownColor: Colors.white,
-                      isExpanded: true,
-                      icon: const Icon(Icons.keyboard_arrow_down,
-                          color: AppColors.primaryNavy),
-                      items: availableCards.map((card) {
-                        return DropdownMenuItem<BankCardEntity>(
-                          value: card,
-                          child: Text(
-                            '${card.cardTypeLabel} - No. ${card.cardNumber} (Saldo: ${card.formattedBalance})',
-                            style: const TextStyle(
-                              color: AppColors.primaryNavy,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (card) {
-                        setState(() {
-                          _selectedCard = card;
-                          if (card != null) {
-                            _withdrawCurrency = card.currency;
-                          }
-                        });
-                      },
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.softBackground,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: const Text(
-                    'Primero selecciona un banco para ver sus tarjetas anexadas',
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 12),
-                  ),
-                ),
-
-              const SizedBox(height: 18),
-
-              // 3. MONTO A RETIRAR
-              Text(
-                Tr.withdrawAmount(lang),
-                style: const TextStyle(
-                  color: AppColors.primaryNavy,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.softBackground,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: TextField(
-                  controller: _amountController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(
-                    color: AppColors.primaryNavy,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  decoration: InputDecoration(
-                    prefixIcon: Icon(
-                      _withdrawCurrency == 'EUR'
-                          ? Icons.euro_rounded
-                          : Icons.attach_money_rounded,
-                      color: AppColors.brandBlue,
-                      size: 20,
-                    ),
-                    suffixText: _withdrawCurrency,
-                    suffixStyle: const TextStyle(
-                      color: AppColors.brandBlue,
-                      fontWeight: FontWeight.bold,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. BANCO REGISTRADO
+                  Text(
+                    Tr.withdrawBankLabel(lang),
+                    style: const TextStyle(
+                      color: AppColors.primaryNavy,
                       fontSize: 13,
-                    ),
-                    hintText: '0.00',
-                    hintStyle: const TextStyle(
-                        color: Color(0xFF94A3B8), fontSize: 15),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // Concepto (Opcional)
-              Text(
-                Tr.conceptOptional(lang),
-                style: const TextStyle(
-                  color: AppColors.primaryNavy,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.softBackground,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: TextField(
-                  controller: _conceptController,
-                  style: const TextStyle(
-                      color: AppColors.primaryNavy, fontSize: 13),
-                  decoration: const InputDecoration(
-                    hintText: 'Ej. Gastos personales, cajero',
-                    hintStyle:
-                        TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                    border: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                ),
-              ),
-
-              // Tablero de Conversión en Tiempo Real (solo si difieren divisas)
-              MultiCurrencyConversionCard(
-                originCurrency:
-                    _selectedCard?.currency ?? _selectedBank?.currency ?? 'COP',
-                destinationCurrency: effectiveWithdrawCurrency,
-                amount: double.tryParse(_amountController.text.trim()) ?? 0.0,
-                isWithdrawal: true,
-              ),
-
-              const SizedBox(height: 20),
-
-              // Botón Confirmar Retiro
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : _submitWithdrawal,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  child: isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          Tr.confirmWithdraw(lang),
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  const SizedBox(height: 6),
+
+                  _accountSummary('', '${bank.name} (${bank.currency})'),
+
+                  const SizedBox(height: 18),
+
+                  // 2. CUENTA DEBITADA DE LA SESIÓN ACTIVA
+                  Text(
+                    Tr.withdrawAccountLabel(lang),
+                    style: const TextStyle(
+                      color: AppColors.primaryNavy,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  _accountSummary(
+                    '',
+                    card == null
+                        ? Tr.withdrawNoAccount(lang)
+                        : '${Tr.cardType(lang, card.cardType == BankCardType.credit)} · ${card.displayAccountNumber} · ${card.formattedBalance}',
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // 3. MONTO A RETIRAR
+                  Text(
+                    Tr.withdrawAmount(lang),
+                    style: const TextStyle(
+                      color: AppColors.primaryNavy,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.softBackground,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: TextField(
+                      controller: _amountController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      style: const TextStyle(
+                        color: AppColors.primaryNavy,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(
+                          _withdrawCurrency == 'EUR'
+                              ? Icons.euro_rounded
+                              : Icons.attach_money_rounded,
+                          color: AppColors.brandBlue,
+                          size: 20,
                         ),
-                ),
+                        suffixText: _withdrawCurrency,
+                        suffixStyle: const TextStyle(
+                          color: AppColors.brandBlue,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                        hintText: '0.00',
+                        hintStyle: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 15,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // Concepto (Opcional)
+                  Text(
+                    Tr.conceptOptional(lang),
+                    style: const TextStyle(
+                      color: AppColors.primaryNavy,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.softBackground,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: TextField(
+                      controller: _conceptController,
+                      style: const TextStyle(
+                        color: AppColors.primaryNavy,
+                        fontSize: 13,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: Tr.withdrawConceptHint(lang),
+                        hintStyle: TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 13,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Tablero de Conversión en Tiempo Real (solo si difieren divisas)
+                  MultiCurrencyConversionCard(
+                    originCurrency: card?.currency ?? bank.currency,
+                    destinationCurrency: effectiveWithdrawCurrency,
+                    amount:
+                        double.tryParse(_amountController.text.trim()) ?? 0.0,
+                    isWithdrawal: true,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Botón Confirmar Retiro
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : _submitWithdrawal,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryNavy,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              Tr.confirmWithdraw(lang),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         ),
       ),
-    ),
-  ),
-);
+    );
   }
+
+  Widget _accountSummary(String title, String value) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: AppColors.softBackground,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFE2E8F0)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title.isNotEmpty) ...[
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.primaryNavy,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 5),
+        ],
+        Text(
+          value,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        ),
+      ],
+    ),
+  );
 }

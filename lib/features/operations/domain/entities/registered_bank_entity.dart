@@ -4,6 +4,8 @@ class RegisteredBankEntity {
   final String id;
   final String name;
   final String code;
+  final String? assignedSlug;
+  final String? assignedSubdomain;
   final String tenantId;
   final String currency;
   final bool isGlobal;
@@ -15,6 +17,8 @@ class RegisteredBankEntity {
     required this.id,
     required this.name,
     required this.code,
+    this.assignedSlug,
+    this.assignedSubdomain,
     this.tenantId = 'tenant_bancolombia',
     this.currency = 'COP',
     this.isGlobal = false,
@@ -22,6 +26,9 @@ class RegisteredBankEntity {
     this.accentColorHex = '#0052FF',
     this.logoKey = 'bankos',
   });
+
+  String get subdomain => assignedSubdomain ?? '$code.bankos.io';
+  String get slug => assignedSlug ?? code.toLowerCase().replaceAll('_', '-');
 
   static const List<RegisteredBankEntity> defaultBanks = [
     RegisteredBankEntity(
@@ -90,7 +97,8 @@ class RegisteredBankEntity {
   static List<RegisteredBankEntity> get preloadedCommercialBanks =>
       defaultBanks.where((b) => !b.isGlobal).toList();
 
-  Color get primaryColor => _parseColor(primaryColorHex, const Color(0xFF0A2540));
+  Color get primaryColor =>
+      _parseColor(primaryColorHex, const Color(0xFF0A2540));
   Color get accentColor => _parseColor(accentColorHex, const Color(0xFF0052FF));
   Color get primaryColorParsed => primaryColor;
   Color get accentColorParsed => accentColor;
@@ -112,6 +120,8 @@ class RegisteredBankEntity {
     String? id,
     String? name,
     String? code,
+    String? assignedSlug,
+    String? assignedSubdomain,
     String? tenantId,
     String? currency,
     bool? isGlobal,
@@ -123,6 +133,8 @@ class RegisteredBankEntity {
       id: id ?? this.id,
       name: name ?? this.name,
       code: code ?? this.code,
+      assignedSlug: assignedSlug ?? this.assignedSlug,
+      assignedSubdomain: assignedSubdomain ?? this.assignedSubdomain,
       tenantId: tenantId ?? this.tenantId,
       currency: currency ?? this.currency,
       isGlobal: isGlobal ?? this.isGlobal,

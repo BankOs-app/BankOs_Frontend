@@ -5,8 +5,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:bankos_frontend/features/auth/presentation/screens/register_screen.dart';
 
 void main() {
-  testWidgets('RegisterScreen - Flujo Progresivo por Pasos Transicionales',
-      (WidgetTester tester) async {
+  testWidgets('RegisterScreen - Flujo Progresivo por Pasos Transicionales', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
@@ -15,11 +16,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
-          home: RegisterScreen(),
-        ),
-      ),
+      const ProviderScope(child: MaterialApp(home: RegisterScreen())),
     );
     await tester.pumpAndSettle();
 
@@ -55,7 +52,10 @@ void main() {
     expect(find.text('Correo electrónico:'), findsOneWidget);
 
     // Escribir correo y avanzar al Paso 4
-    await tester.enterText(find.byType(TextField).first, 'alejandro@bankos.com');
+    await tester.enterText(
+      find.byType(TextField).first,
+      'alejandro@bankos.com',
+    );
     await tester.tap(find.text('Continuar'));
     await tester.pumpAndSettle();
 

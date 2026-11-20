@@ -595,6 +595,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
     final codeCtrl = TextEditingController();
     final subdomainCtrl = TextEditingController();
     String currency = 'USD';
+    bool isSaving = false;
 
     showModalBottomSheet(
       context: context,
@@ -780,19 +781,19 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                             width: double.infinity,
                             height: 48,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: isSaving ? null : () async {
                                 final name = nameCtrl.text.trim();
-                                final code = codeCtrl.text.trim().isNotEmpty
-                                    ? codeCtrl.text.trim()
-                                    : (name.length >= 3
-                                        ? name.substring(0, 3).toUpperCase()
-                                        : 'BNK');
+                                final code = codeCtrl.text.trim().toUpperCase();
+                                final subdomain = subdomainCtrl.text.trim().toLowerCase();
 
-                                if (name.isEmpty) {
+                                if (name.length < 3 ||
+                                    !RegExp(r'^[A-Z0-9]+(?:[-_][A-Z0-9]+)*$').hasMatch(code) ||
+                                    !RegExp(r'^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.bankos\.io$').hasMatch(subdomain)) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Ingresa el nombre del banco o institución.'),
+                                    SnackBar(
+                                      content: Text(lang == AppLanguage.es
+                                          ? 'Revisa el nombre, el código y el subdominio.'
+                                          : 'Check the name, code, and subdomain.'),
                                       backgroundColor: Color(0xFFEF4444),
                                       behavior: SnackBarBehavior.floating,
                                     ),
@@ -800,28 +801,40 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                                   return;
                                 }
 
-                                final newBank = RegisteredBankEntity(
-                                  id: 'bank_${DateTime.now().millisecondsSinceEpoch}',
-                                  name: name,
-                                  code: code.toUpperCase(),
-                                  tenantId: 'tenant_${code.toLowerCase()}',
-                                  currency: currency,
-                                  isGlobal: false,
-                                );
-
-                                ref
-                                    .read(operationsNotifierProvider.notifier)
-                                    .registerNewTenantBank(newBank);
-                                Navigator.pop(modalCtx);
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        '¡Banco $name creado exitosamente!'),
+                                setModalState(() => isSaving = true);
+                                try {
+                                  await ref.read(operationsNotifierProvider.notifier)
+                                      .registerNewTenantBank(RegisteredBankEntity(
+                                        id: 'pending_${DateTime.now().millisecondsSinceEpoch}',
+                                        name: name,
+                                        code: code,
+                                        assignedSlug: code.toLowerCase().replaceAll('_', '-'),
+                                        assignedSubdomain: subdomain,
+                                        tenantId: 'tenant_${code.toLowerCase()}',
+                                        currency: currency,
+                                        isGlobal: false,
+                                      ));
+                                  if (!context.mounted) return;
+                                  Navigator.pop(modalCtx);
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                    content: Text(lang == AppLanguage.es
+                                        ? 'La entidad $name se creó correctamente.'
+                                        : '$name was created successfully.'),
                                     backgroundColor: const Color(0xFF10B981),
                                     behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
+                                  ));
+                                } catch (_) {
+                                  if (context.mounted) {
+                                    setModalState(() => isSaving = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                      content: Text(lang == AppLanguage.es
+                                          ? 'No fue posible crear la entidad. Verifica los datos o inténtalo más tarde.'
+                                          : 'The institution could not be created. Check the details or try again later.'),
+                                      backgroundColor: const Color(0xFFEF4444),
+                                      behavior: SnackBarBehavior.floating,
+                                    ));
+                                  }
+                                }
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: primaryColor == Colors.black
@@ -833,7 +846,9 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: Text(
+                              child: isSaving
+                                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : Text(
                                 Tr.provisionButton(lang),
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold, fontSize: 14),
@@ -3085,7 +3100,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
         .where((a) =>
             a.tenantId == targetBank.tenantId ||
             (targetBank.code.isNotEmpty &&
-                a.tenantId.contains(targetBank.code.toLowerCase())))
+                a.tenantId.contains(targetBank.slug)))
         .map((a) => a.id)
         .toSet();
 
@@ -3097,7 +3112,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
     if (matchingHistory.isNotEmpty) return matchingHistory;
 
     final now = DateTime.now();
-    final slug = targetBank.code.toLowerCase();
+    final slug = targetBank.slug;
 
     if (slug.contains('lombia')) {
       return [

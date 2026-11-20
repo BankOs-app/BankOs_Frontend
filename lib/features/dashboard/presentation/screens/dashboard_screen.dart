@@ -1,8 +1,10 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/localization/app_locale_provider.dart';
 import '../providers/dashboard_providers.dart';
 import '../widgets/balance_card_widget.dart';
 import '../widgets/quick_actions_widget.dart';
@@ -11,12 +13,12 @@ import '../widgets/transaction_tile_widget.dart';
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
-  void _showNotificationSnackBar(BuildContext context) {
+  void _showNotificationSnackBar(BuildContext context, AppLanguage lang) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(AppStrings.noNotifications),
+      SnackBar(
+        content: Text(Tr.noNotifications(lang)),
         behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -34,6 +36,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(dashboardNotifierProvider);
+    final lang = ref.watch(localeNotifierProvider);
     final notifier = ref.read(dashboardNotifierProvider.notifier);
 
     return Scaffold(
@@ -52,7 +55,7 @@ class DashboardScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_none),
-            onPressed: () => _showNotificationSnackBar(context),
+            onPressed: () => _showNotificationSnackBar(context, lang),
           ),
         ],
       ),
@@ -65,8 +68,8 @@ class DashboardScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Welcome Greeting
-              const Text(
-                AppStrings.greeting,
+              Text(
+                Tr.dashboardGreeting(lang),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -75,11 +78,8 @@ class DashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                AppStrings.welcomeSubtitle,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.blueGrey[600],
-                ),
+                Tr.dashboardWelcome(lang),
+                style: TextStyle(fontSize: 16, color: Colors.blueGrey[600]),
               ),
               const SizedBox(height: 24),
 
@@ -88,20 +88,23 @@ class DashboardScreen extends ConsumerWidget {
                 account: state.account,
                 hideBalance: state.hideBalance,
                 onToggleVisibility: notifier.toggleBalanceVisibility,
+                lang: lang,
               ),
 
               const SizedBox(height: 28),
 
               // Quick Actions
               QuickActionsWidget(
-                onActionSelected: (message) => _showActionSnackBar(context, message),
+                lang: lang,
+                onActionSelected: (message) =>
+                    _showActionSnackBar(context, message),
               ),
 
               const SizedBox(height: 32),
 
               // Recent Transactions Header
-              const Text(
-                AppStrings.recentTransactions,
+              Text(
+                Tr.recentTransactions(lang),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -114,9 +117,7 @@ class DashboardScreen extends ConsumerWidget {
               if (state.transactions.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24.0),
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  child: Center(child: CircularProgressIndicator()),
                 )
               else
                 ...state.transactions.map(

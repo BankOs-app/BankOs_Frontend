@@ -1,13 +1,16 @@
 import 'package:material_ui/material_ui.dart';
+
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_strings.dart';
+import '../../../../core/localization/app_locale_provider.dart';
 
 class QuickActionsWidget extends StatelessWidget {
   final void Function(String message) onActionSelected;
+  final AppLanguage lang;
 
   const QuickActionsWidget({
     super.key,
     required this.onActionSelected,
+    required this.lang,
   });
 
   @override
@@ -15,8 +18,8 @@ class QuickActionsWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          AppStrings.quickActions,
+        Text(
+          Tr.quickActions(lang),
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -29,27 +32,27 @@ class QuickActionsWidget extends StatelessWidget {
           children: [
             _buildActionButton(
               icon: Icons.send_rounded,
-              label: AppStrings.transfer,
+              label: Tr.transfer(lang),
               color: AppColors.actionBlue,
-              onTap: () => onActionSelected('Bank transfer initiated'),
+              onTap: () => onActionSelected(Tr.transfer(lang)),
             ),
             _buildActionButton(
               icon: Icons.download_rounded,
-              label: AppStrings.receive,
+              label: Tr.receive(lang),
               color: AppColors.emeraldSuccess,
-              onTap: () => onActionSelected('Your receiving account number is 4829'),
+              onTap: () => onActionSelected(Tr.receive(lang)),
             ),
             _buildActionButton(
               icon: Icons.receipt_long_rounded,
-              label: AppStrings.bills,
+              label: Tr.bills(lang),
               color: AppColors.warningAmber,
-              onTap: () => onActionSelected('Utility bills payment module'),
+              onTap: () => onActionSelected(Tr.bills(lang)),
             ),
             _buildActionButton(
               icon: Icons.more_horiz_rounded,
-              label: AppStrings.more,
+              label: Tr.more(lang),
               color: AppColors.neutralGray,
-              onTap: () => onActionSelected('More menu options'),
+              onTap: () => onActionSelected(Tr.more(lang)),
             ),
           ],
         ),

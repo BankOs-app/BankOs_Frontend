@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/localization/app_locale_provider.dart';
 import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../operations/presentation/providers/operations_providers.dart';
 import '../providers/auth_providers.dart';
@@ -27,11 +28,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _handleSendRecoveryCode() async {
+    final lang = ref.read(localeNotifierProvider);
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, ingresa tu correo electrónico.'),
+        SnackBar(
+          content: Text(Tr.requiredEmail(lang)),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -53,15 +55,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Text(
-              'Código enviado',
+            title: Text(
+              Tr.recoverySent(lang),
               style: TextStyle(
                 color: AppColors.primaryNavy,
                 fontWeight: FontWeight.bold,
               ),
             ),
             content: Text(
-              'Hemos enviado el código de recuperación a $email.',
+              Tr.recoverySentSub(lang, email),
               style: const TextStyle(color: AppColors.textSecondary),
             ),
             actions: [
@@ -77,7 +79,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text('Volver al inicio de sesión'),
+                child: Text(Tr.backToLogin(lang)),
               ),
             ],
           ),
@@ -95,8 +97,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final operationsState = ref.watch(operationsNotifierProvider);
+    final lang = ref.watch(localeNotifierProvider);
     final currentBank = operationsState.currentBank;
-    final slug = currentBank.code.toLowerCase();
+    final slug = currentBank.slug;
 
     // Colores según el banco activo
     final Color buttonBgColor;
@@ -140,12 +143,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         backgroundColor: const Color(0xFFF8FAFC),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new,
-              color: AppColors.primaryNavy, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.primaryNavy,
+            size: 20,
+          ),
           onPressed: () => context.go('/login'),
         ),
-        title: const Text(
-          'Recuperar Contraseña',
+        title: Text(
+          Tr.forgotTitle(lang),
           style: TextStyle(
             color: AppColors.primaryNavy,
             fontSize: 18,
@@ -172,11 +178,19 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         color: Colors.white,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: (brandAccent == Colors.black ? const Color(0xFFFDDA24) : brandAccent).withValues(alpha: 0.4),
+                          color:
+                              (brandAccent == Colors.black
+                                      ? const Color(0xFFFDDA24)
+                                      : brandAccent)
+                                  .withValues(alpha: 0.4),
                           width: 1.5,
                         ),
                       ),
-                      child: BankBrandLogo(bank: currentBank, size: 48, showName: false),
+                      child: BankBrandLogo(
+                        bank: currentBank,
+                        size: 48,
+                        showName: false,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -200,8 +214,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               const SizedBox(height: 28),
 
               // Header Text
-              const Text(
-                'Ingresa tu correo electrónico\npara la recuperación',
+              Text(
+                Tr.forgotSub(lang),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppColors.primaryNavy,
@@ -212,12 +226,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Te enviaremos las instrucciones de recuperación a tu correo registrado en ${currentBank.name}.',
+                Tr.recoveryInstructions(lang, currentBank.name),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
               ),
 
               const SizedBox(height: 32),
@@ -225,7 +236,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               // Email Input Field
               AuthTextField(
                 controller: _emailController,
-                hintText: 'Correo electrónico',
+                hintText: Tr.email(lang),
                 keyboardType: TextInputType.emailAddress,
                 isDark: false,
               ),
@@ -257,7 +268,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           ),
                         )
                       : Text(
-                          'Enviar código de recuperación',
+                          Tr.sendRecovery(lang),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -291,7 +302,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       child: Center(
         child: Icon(
           Icons.lock_reset_rounded,
-          color: brandAccent == Colors.black ? const Color(0xFF0F172A) : brandAccent,
+          color: brandAccent == Colors.black
+              ? const Color(0xFF0F172A)
+              : brandAccent,
           size: 48,
         ),
       ),

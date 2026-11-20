@@ -7,6 +7,7 @@ abstract class OperationsRepository {
   Future<List<BankAccountEntity>> getAccounts();
   Future<List<OperationRecordEntity>> getHistory();
   Future<List<RegisteredBankEntity>> getBanks();
+  Future<RegisteredBankEntity> registerTenant(RegisteredBankEntity bank);
   Future<List<BankCardEntity>> getCards();
 
   Future<OperationRecordEntity> deposit({
@@ -14,32 +15,27 @@ abstract class OperationsRepository {
     required double amount,
     String? concept,
   });
-
   Future<OperationRecordEntity> depositToCard({
     required BankCardEntity card,
     required double amount,
     String? concept,
   });
-
   Future<OperationRecordEntity> withdraw({
     required String accountId,
     required double amount,
     String? concept,
   });
-
   Future<OperationRecordEntity> withdrawFromCard({
     required BankCardEntity card,
     required double amount,
     String? concept,
   });
-
   Future<OperationRecordEntity> internalTransfer({
     required String originAccountId,
     required String destinationAccountId,
     required double amount,
     String? concept,
   });
-
   Future<OperationRecordEntity> currencyExchange({
     required String originAccountId,
     required String destinationAccountId,
@@ -47,14 +43,12 @@ abstract class OperationsRepository {
     required double staticRate,
     String? concept,
   });
-
   Future<OperationRecordEntity> transferBetweenCards({
     required BankCardEntity originCard,
     required BankCardEntity destinationCard,
     required double amount,
     String? concept,
   });
-
   Future<void> updateBankBranding({
     required String slug,
     required String primaryColor,
