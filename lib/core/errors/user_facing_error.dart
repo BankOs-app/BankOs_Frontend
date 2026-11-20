@@ -17,11 +17,13 @@ class UserFacingError {
       final payload = error.response?.data;
       if (payload is Map) {
         final code = payload['internalCode']?.toString();
-        if (status != null)
+        if (status != null) {
           return Tr.apiError(LocaleNotifier.currentLanguage, status, code);
+        }
       }
-      if (status != null)
+      if (status != null) {
         return Tr.apiError(LocaleNotifier.currentLanguage, status, null);
+      }
     }
 
     final message = error

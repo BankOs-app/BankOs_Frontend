@@ -199,9 +199,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               size: 16,
                               color: AppColors.primaryNavy,
                             ),
-                            label: const Text(
+                            label: Text(
                               Tr.chooseAnotherBank(lang),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.primaryNavy,

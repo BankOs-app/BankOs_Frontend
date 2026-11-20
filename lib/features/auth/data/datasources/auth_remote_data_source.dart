@@ -44,8 +44,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     if (lower.contains('santander')) return 'banco-santander';
     if (lower.contains('nu.com') ||
         lower.contains('banco-nu') ||
-        lower.contains('@nu.'))
+        lower.contains('@nu.')) {
       return 'banco-nu';
+    }
     if (lower.contains('occidente')) return 'banco-occidente';
     if (lower.contains('lombia')) return 'banco-lombia';
     return 'banco-lombia';

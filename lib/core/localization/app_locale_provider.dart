@@ -682,18 +682,21 @@ class Tr {
     if (status == 401) return credentialsInvalid(lang);
     if (status == 403) return permissionError(lang);
     if (status == 404) return notFoundError(lang);
-    if (status == 400)
+    if (status == 400) {
       return _es(lang)
           ? 'Revisa los datos ingresados e inténtalo de nuevo.'
           : 'Check the information and try again.';
-    if (status == 409)
+    }
+    if (status == 409) {
       return _es(lang)
           ? 'La solicitud coincide con una operación reciente. Actualiza e inténtalo de nuevo.'
           : 'This request conflicts with a recent operation. Refresh and try again.';
-    if (status == 429)
+    }
+    if (status == 429) {
       return _es(lang)
           ? 'Hay demasiados intentos. Espera un momento e inténtalo de nuevo.'
           : 'Too many attempts. Wait a moment and try again.';
+    }
     return _es(lang)
         ? 'El servicio bancario no está disponible por el momento. Inténtalo más tarde.'
         : 'The banking service is temporarily unavailable. Please try again later.';

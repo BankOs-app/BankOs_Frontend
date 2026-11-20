@@ -15,10 +15,10 @@ class DashboardScreen extends ConsumerWidget {
 
   void _showNotificationSnackBar(BuildContext context, AppLanguage lang) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(Tr.noNotifications(lang)),
         behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

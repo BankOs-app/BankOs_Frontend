@@ -294,14 +294,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(22),
             ),
-            title: const Row(
+            title: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.check_circle_rounded,
                   color: Color(0xFF10B981),
                   size: 28,
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Text(
                   _tr('¡Registro exitoso!', 'Registration successful'),
                   style: const TextStyle(
@@ -859,7 +859,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Icons.keyboard_arrow_down_rounded,
                   color: AppColors.primaryNavy,
                 ),
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: 'Cédula de Ciudadanía (CC)',
                     child: Text(
