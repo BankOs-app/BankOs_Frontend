@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import '../../../../core/constants/app_colors.dart';
 
 class WaveBackgroundPainter extends CustomPainter {
-  final Color waveColor;
+  final Color primaryColor;
+  final Color secondaryColor;
 
   const WaveBackgroundPainter({
-    this.waveColor = const Color(0xFF38BDF8),
+    this.primaryColor = AppColors.brandBlue,
+    this.secondaryColor = AppColors.primaryNavy,
   });
 
   @override
@@ -12,34 +15,64 @@ class WaveBackgroundPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // Multiple layered flowing contour waves in the lower third of the screen
-    final waveCount = 10;
-    final startY = h * 0.60;
-    final stepY = (h * 0.38) / waveCount;
+    // Smooth, minimalist ambient wave curve in the lower section
+    // Soft flowing wave matching the dark launch screen in the mockup
+    final wavePath1 = Path();
+    wavePath1.moveTo(0, h * 0.72);
+    wavePath1.cubicTo(
+      w * 0.35,
+      h * 0.65,
+      w * 0.65,
+      h * 0.82,
+      w,
+      h * 0.70,
+    );
+    wavePath1.lineTo(w, h);
+    wavePath1.lineTo(0, h);
+    wavePath1.close();
 
-    for (int i = 0; i < waveCount; i++) {
-      final yOffset = startY + (i * stepY);
-      final alpha = (0.06 + (i * 0.015)).clamp(0.04, 0.22);
+    final wavePaint1 = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          primaryColor.withValues(alpha: 0.25),
+          secondaryColor.withValues(alpha: 0.45),
+        ],
+      ).createShader(Rect.fromLTWH(0, h * 0.65, w, h * 0.35))
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
 
-      final paint = Paint()
-        ..color = waveColor.withValues(alpha: alpha)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0 + (i * 0.08)
-        ..isAntiAlias = true;
+    canvas.drawPath(wavePath1, wavePaint1);
 
-      final path = Path();
-      path.moveTo(0, yOffset);
+    // Subtle second overlapping wave for organic depth
+    final wavePath2 = Path();
+    wavePath2.moveTo(0, h * 0.80);
+    wavePath2.cubicTo(
+      w * 0.40,
+      h * 0.74,
+      w * 0.70,
+      h * 0.88,
+      w,
+      h * 0.78,
+    );
+    wavePath2.lineTo(w, h);
+    wavePath2.lineTo(0, h);
+    wavePath2.close();
 
-      // Create flowing curve with control points
-      final cp1x = w * 0.25;
-      final cp1y = yOffset - 35 + (i * 4);
-      final cp2x = w * 0.70;
-      final cp2y = yOffset + 45 - (i * 3);
+    final wavePaint2 = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          primaryColor.withValues(alpha: 0.20),
+          secondaryColor.withValues(alpha: 0.60),
+        ],
+      ).createShader(Rect.fromLTWH(0, h * 0.74, w, h * 0.26))
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
 
-      path.cubicTo(cp1x, cp1y, cp2x, cp2y, w, yOffset - 15 + (i * 2));
-
-      canvas.drawPath(path, paint);
-    }
+    canvas.drawPath(wavePath2, wavePaint2);
   }
 
   @override

@@ -15,7 +15,7 @@ class AccountEntity {
     required this.isActive,
   });
 
-  String get maskedAccountNumber => '•••• $accountNumber';
+  String get maskedAccountNumber => accountNumber;
 
   String get formattedBalance {
     final intBalance = balance.toInt();
