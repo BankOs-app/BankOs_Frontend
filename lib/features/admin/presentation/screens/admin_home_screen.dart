@@ -3483,6 +3483,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
+              ref.read(authNotifierProvider.notifier).logout();
               context.go('/select-tenant');
             },
             style: ElevatedButton.styleFrom(

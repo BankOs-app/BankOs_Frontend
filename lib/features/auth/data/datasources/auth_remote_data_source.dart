@@ -31,14 +31,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   String _inferTenant(String email) {
     final lower = email.toLowerCase();
+    if (activeTenantSlug != null && activeTenantSlug!.isNotEmpty) {
+      return activeTenantSlug == 'BOS' ? 'banco-lombia' : activeTenantSlug!;
+    }
+    if (lower.contains('bankos')) return 'banco-lombia';
     if (lower.contains('bogota')) return 'banco-bogota';
     if (lower.contains('santander')) return 'banco-santander';
     if (lower.contains('nu.com') || lower.contains('banco-nu') || lower.contains('@nu.')) return 'banco-nu';
     if (lower.contains('occidente')) return 'banco-occidente';
     if (lower.contains('lombia')) return 'banco-lombia';
-    if (activeTenantSlug != null && activeTenantSlug!.isNotEmpty) {
-      return activeTenantSlug!;
-    }
     return 'banco-lombia';
   }
 
@@ -76,15 +77,17 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         }
 
         final roleStr = (userObj['role'] as String?)?.toLowerCase();
-        final role = (roleStr == 'admin' || cleanEmail.contains('admin'))
-            ? UserRole.admin
-            : UserRole.client;
+        final role = roleStr == 'super_admin'
+            ? UserRole.superAdmin
+            : roleStr == 'admin'
+                ? UserRole.admin
+                : UserRole.client;
 
         final fullName = (userObj['fullName'] ?? userObj['name'] ?? userObj['tenantName']) as String?;
 
         final displayName = (fullName != null && fullName.isNotEmpty)
             ? fullName
-            : (role == UserRole.admin
+            : (role != UserRole.client
                 ? (cleanEmail.contains('bankos') ? 'Luigui Garizado' : 'Administrador')
                 : (cleanEmail.contains('bancolombia') ? 'Alejandro Morales' : cleanEmail.split('@')[0]));
 
@@ -116,12 +119,34 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       final isFlutterTest = Platform.environment.containsKey('FLUTTER_TEST');
-      if (isFlutterTest ||
+      final demoTenantByEmail = <String, String>{
+        'admin@bankos.com': 'banco-lombia',
+        'admin@bancolombia.com': 'banco-lombia',
+        'cliente@bancolombia.com': 'banco-lombia',
+        'admin@bogota.com': 'banco-bogota',
+        'carlos@bogota.com': 'banco-bogota',
+        'maria@bogota.com': 'banco-bogota',
+        'admin@santander.com': 'banco-santander',
+        'john@santander.com': 'banco-santander',
+        'admin@nu.com': 'banco-nu',
+        'cliente@nu.com': 'banco-nu',
+      };
+      final demoRoleByEmail = <String, UserRole>{
+        'admin@bankos.com': UserRole.superAdmin,
+        'admin@bancolombia.com': UserRole.admin,
+        'admin@bogota.com': UserRole.admin,
+        'admin@santander.com': UserRole.admin,
+        'admin@nu.com': UserRole.admin,
+      };
+      final isConnectionError =
           dioErr.type == DioExceptionType.connectionError ||
-          dioErr.type == DioExceptionType.connectionTimeout) {
+              dioErr.type == DioExceptionType.connectionTimeout;
+      final isValidDemoLogin = cleanPassword == '1234' &&
+          demoTenantByEmail[cleanEmail] == tenantSlug;
+      if (isFlutterTest || (isConnectionError && isValidDemoLogin)) {
         // Fallback resiliente: Si estamos en pruebas o el backend local no está encendido en localhost:3000,
         // permite autenticar la sesión demo según el rol para no bloquear las pruebas en el navegador.
-        final role = cleanEmail.contains('admin') ? UserRole.admin : UserRole.client;
+        final role = demoRoleByEmail[cleanEmail] ?? UserRole.client;
         final displayName = cleanEmail.contains('admin')
             ? (cleanEmail.contains('bankos') ? 'Luigui Garizado' : 'Administrador')
             : (cleanEmail.contains('bancolombia') ? 'Alejandro Morales' : cleanEmail.split('@')[0]);
@@ -132,6 +157,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           name: displayName,
           token: 'demo_jwt_fallback_token',
           role: role,
+        );
+      }
+
+      if (isConnectionError) {
+        throw const ServerException(
+          message: 'No se pudo conectar con el banco para validar tus credenciales.',
         );
       }
 
@@ -167,14 +198,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
             email: data['email'] as String? ?? 'cliente@bancolombia.com',
             name: 'Cliente BankOS',
             token: currentToken,
-            role: roleStr == 'admin' ? UserRole.admin : UserRole.client,
+            role: roleStr == 'super_admin'
+                ? UserRole.superAdmin
+                : roleStr == 'admin'
+                    ? UserRole.admin
+                    : UserRole.client,
           );
         }
       } catch (_) {}
     }
 
-    // Login biométrico rápido por defecto para pruebas
-    return login('cliente@bancolombia.com', '1234');
+    throw const ServerException(
+      message: 'Inicia sesión con las credenciales del banco seleccionado para activar la autenticación biométrica.',
+    );
   }
 
   @override

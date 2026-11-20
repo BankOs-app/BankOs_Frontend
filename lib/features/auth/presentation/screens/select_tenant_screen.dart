@@ -6,6 +6,7 @@ import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../../core/widgets/bankos_logo.dart';
 import '../../../operations/domain/entities/registered_bank_entity.dart';
 import '../../../operations/presentation/providers/operations_providers.dart';
+import '../providers/auth_providers.dart';
 
 /// PORTAL CENTRAL DE SELECCIÓN DE ENTIDADES FINANCIERAS (BankOs)
 /// - Look & feel limpio, elegante y fusionado con los tonos de BankOs (Figma e Imagen 1 del usuario).
@@ -24,12 +25,14 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
   RegisteredBankEntity? _selectedBank;
 
   void _loginToSelectedBank(RegisteredBankEntity bank) {
+    ref.read(authNotifierProvider.notifier).logout();
     ref.read(operationsNotifierProvider.notifier).switchActiveBank(bank);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     context.go('/login');
   }
 
   void _navigateToSuperAdminLogin() {
+    ref.read(authNotifierProvider.notifier).logout();
     final opsState = ref.read(operationsNotifierProvider);
     final globalBank = opsState.globalBank;
     ref.read(operationsNotifierProvider.notifier).switchActiveBank(globalBank);

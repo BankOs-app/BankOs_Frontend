@@ -702,6 +702,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
+                          ref.read(authNotifierProvider.notifier).logout();
                           context.go('/select-tenant');
                         },
                         style: ElevatedButton.styleFrom(

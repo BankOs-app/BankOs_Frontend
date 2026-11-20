@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/usecases/login_usecase.dart';
@@ -9,18 +10,13 @@ class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() => const AuthState();
 
-  Future<bool> login(String email, String password,
-      {UserRole role = UserRole.client}) async {
+  Future<bool> login(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
       final loginUseCase = ref.read(loginUseCaseProvider);
       final rawUser = await loginUseCase(
         LoginParams(email: email, password: password),
       );
-      final assignedRole =
-          (email.toLowerCase().contains('admin') || role == UserRole.admin)
-              ? UserRole.admin
-              : UserRole.client;
       final user = UserEntity(
         id: rawUser.id,
         email: rawUser.email,
@@ -28,7 +24,7 @@ class AuthNotifier extends Notifier<AuthState> {
         documentNumber: rawUser.documentNumber,
         phone: rawUser.phone,
         token: rawUser.token,
-        role: assignedRole,
+        role: rawUser.role,
       );
       state = state.copyWith(
         status: AuthStatus.authenticated,
@@ -45,6 +41,11 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       return false;
     }
+  }
+
+  void logout() {
+    DioClient.setAuthToken(null);
+    state = const AuthState();
   }
 
   Future<bool> loginWithBiometrics() async {
