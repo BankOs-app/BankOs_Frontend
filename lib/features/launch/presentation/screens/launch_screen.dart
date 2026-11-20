@@ -20,8 +20,8 @@ class _LaunchScreenState extends ConsumerState<LaunchScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto navigation to onboarding after launch presentation
-    _navigationTimer = Timer(const Duration(milliseconds: 2400), () {
+    // Navegación automática a Onboarding tras presentación de marca
+    _navigationTimer = Timer(const Duration(milliseconds: 2200), () {
       if (mounted) {
         context.go('/onboarding');
       }

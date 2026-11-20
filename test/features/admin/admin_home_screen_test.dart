@@ -57,9 +57,9 @@ void main() {
     expect(find.text('ID de Matrícula'), findsOneWidget);
     expect(find.text('ADM-88392-COL'), findsOneWidget);
     expect(find.text('Entidad Asignada'), findsOneWidget);
-    expect(find.text('ID de Tenant'), findsOneWidget);
+    expect(find.text('Código Institucional'), findsOneWidget);
     expect(find.text('Nivel de Acceso'), findsOneWidget);
-    expect(find.text('Aislamiento de Datos'), findsOneWidget);
+    expect(find.text('Protocolo de Seguridad'), findsOneWidget);
 
     // Close modal
     await tester.tap(find.text('Cerrar'));

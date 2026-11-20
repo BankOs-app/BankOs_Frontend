@@ -202,7 +202,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       id: 'card_col_01',
       bankId: '4f2a0415-2697-42d7-878d-ab67a1f6a657',
       bankName: 'Bancolombia',
-      cardNumber: '7001',
+      cardNumber: '7007007001',
       cardHolder: 'Alejandro Morales',
       cardType: BankCardType.debit,
       availableBalance: 8000000.00,
@@ -213,7 +213,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       id: 'card_bogota_01',
       bankId: '11111111-1111-4111-8111-111111111111',
       bankName: 'Banco de Bogotá',
-      cardNumber: '1001',
+      cardNumber: '1001001001',
       cardHolder: 'Carlos Gómez',
       cardType: BankCardType.debit,
       availableBalance: 5000000.00,
@@ -221,21 +221,10 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       accountId: 'acc_bogota_01',
     ),
     const BankCardEntity(
-      id: 'card_bogota_02',
-      bankId: '11111111-1111-4111-8111-111111111111',
-      bankName: 'Banco de Bogotá',
-      cardNumber: '1002',
-      cardHolder: 'Carlos Gómez',
-      cardType: BankCardType.credit,
-      availableBalance: 1500.00,
-      currency: 'USD',
-      accountId: 'acc_bogota_02',
-    ),
-    const BankCardEntity(
       id: 'card_sant_01',
       bankId: '22222222-2222-4222-8222-222222222222',
       bankName: 'Banco Santander',
-      cardNumber: '9001',
+      cardNumber: '9009009001',
       cardHolder: 'John Smith',
       cardType: BankCardType.debit,
       availableBalance: 3500.00,
@@ -246,12 +235,34 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       id: 'card_nu_01',
       bankId: '47130a5f-3368-4a0b-ab77-0982b6a07a96',
       bankName: 'Banco de NU',
-      cardNumber: '8001',
+      cardNumber: '8008008001',
       cardHolder: 'Catalina Restrepo',
       cardType: BankCardType.debit,
       availableBalance: 3500000.00,
       currency: 'COP',
       accountId: 'acc_nu_01',
+    ),
+    const BankCardEntity(
+      id: 'card_occ_01',
+      bankId: 'e3a4a8cc-5551-400b-beb5-6b5ced30c7e0',
+      bankName: 'Banco de Occidente',
+      cardNumber: '5005005001',
+      cardHolder: 'Carlos Gómez',
+      cardType: BankCardType.debit,
+      availableBalance: 4200000.00,
+      currency: 'COP',
+      accountId: 'acc_occ_01',
+    ),
+    const BankCardEntity(
+      id: 'card_bos_01',
+      bankId: 'bank_bankos_global',
+      bankName: 'Cuenta Global BankOs',
+      cardNumber: '1001001000',
+      cardHolder: 'Luigui Garizado',
+      cardType: BankCardType.debit,
+      availableBalance: 50000.00,
+      currency: 'USD',
+      accountId: 'acc_bankos_01',
     ),
   ];
 
@@ -459,7 +470,10 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
           a.accountNumber == card.cardNumber ||
           a.accountNumber.endsWith(card.cardNumber)).firstOrNull;
       if (acc != null) {
-        _cards[i] = card.copyWith(availableBalance: acc.balance);
+        _cards[i] = card.copyWith(
+          availableBalance: acc.balance,
+          cardNumber: acc.accountNumber,
+        );
       }
     }
   }
@@ -470,19 +484,8 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       final response = await dioClient.get(ApiEndpoints.tenants);
       if (response.statusCode == 200 && response.data != null) {
         final list = response.data as List<dynamic>;
-        final realBanks = <RegisteredBankEntity>[
-          const RegisteredBankEntity(
-            id: 'bank_bankos_global',
-            name: 'Cuenta Global BankOs',
-            code: 'BOS',
-            tenantId: 'tenant_bankos_global',
-            currency: 'USD',
-            isGlobal: true,
-            primaryColorHex: '#031633',
-            accentColorHex: '#6DA5FA',
-            logoKey: 'bankos',
-          ),
-          ...list.map((item) {
+        if (list.isNotEmpty) {
+          final mappedBanks = list.map((item) {
             final m = item as Map<String, dynamic>;
             final slug = m['slug'] as String? ?? '';
             return RegisteredBankEntity(
@@ -523,13 +526,24 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
                                   ? 'banco-nu'
                                   : 'bankos')))),
             );
-          }),
-        ];
+          }).toList();
 
-        if (realBanks.isNotEmpty) {
-          _banks.clear();
-          _banks.addAll(realBanks);
-          return List.unmodifiable(_banks);
+          if (mappedBanks.isNotEmpty) {
+            _banks.clear();
+            _banks.add(const RegisteredBankEntity(
+              id: 'bank_bankos_global',
+              name: 'Cuenta Global BankOs',
+              code: 'BOS',
+              tenantId: 'tenant_bankos_global',
+              currency: 'USD',
+              isGlobal: true,
+              primaryColorHex: '#031633',
+              accentColorHex: '#6DA5FA',
+              logoKey: 'bankos',
+            ));
+            _banks.addAll(mappedBanks);
+            return List.unmodifiable(_banks);
+          }
         }
       }
     } catch (_) {}
@@ -954,8 +968,13 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
             balance: newSrcBal ?? (originAcc.balance - amount),
           );
         }
+        double creditedAmount = amount;
+        if (originAcc != null && destAcc != null && originAcc.currency != destAcc.currency) {
+          final rate = StaticExchangeRate.getRate(originAcc.currency, destAcc.currency);
+          creditedAmount = amount * rate;
+        }
         if (destIdx != -1 && destAcc != null) {
-          _accounts[destIdx] = destAcc.copyWith(balance: destAcc.balance + amount);
+          _accounts[destIdx] = destAcc.copyWith(balance: destAcc.balance + creditedAmount);
         }
         _syncCardsWithAccounts();
 
@@ -983,8 +1002,14 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         throw Exception('Saldo insuficiente en la cuenta de origen.');
       }
 
+      double creditedAmount = amount;
+      if (src.currency != dst.currency) {
+        final rate = StaticExchangeRate.getRate(src.currency, dst.currency);
+        creditedAmount = amount * rate;
+      }
+
       _accounts[originIdx] = src.copyWith(balance: src.balance - amount);
-      _accounts[destIdx] = dst.copyWith(balance: dst.balance + amount);
+      _accounts[destIdx] = dst.copyWith(balance: dst.balance + creditedAmount);
       _syncCardsWithAccounts();
 
       final record = OperationRecordEntity(
@@ -1058,13 +1083,13 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
 
     final orig = _cards[origIdx];
     final dest = _cards[destIdx];
-    const fee = 2.50;
+    const fee = 0.0;
     final totalDebit = amount + fee;
 
     if (orig.availableBalance < totalDebit) {
       throw ArgumentError(
         'Saldo insuficiente en ${orig.bankName}. Disponible: ${orig.formattedBalance}. '
-        'Requerido: \$${totalDebit.toStringAsFixed(2)} ($amount + \$${fee.toStringAsFixed(2)} comisión).',
+        'Requerido: \$${totalDebit.toStringAsFixed(2)} ${orig.currency}.',
       );
     }
 

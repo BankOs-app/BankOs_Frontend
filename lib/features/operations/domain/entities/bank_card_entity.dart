@@ -25,7 +25,9 @@ class BankCardEntity {
     required this.accountId,
   });
 
-  String get maskedCardNumber => '•••• $cardNumber';
+  String get maskedCardNumber => cardNumber;
+
+  String get displayAccountNumber => cardNumber;
 
   String get currencySymbol {
     if (currency == 'EUR') return '€';

@@ -25,7 +25,7 @@ void main() {
 
     // 1. PASO 1: Nombre Completo
     expect(find.text('Registro de Cliente'), findsOneWidget);
-    expect(find.text('Paso 1 de 5'), findsOneWidget);
+    expect(find.text('Paso 1 de 6'), findsOneWidget);
     expect(find.text('¿Cómo te llamas?'), findsOneWidget);
     expect(find.text('Nombre completo:'), findsOneWidget);
 
@@ -40,7 +40,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 2. PASO 2: Documento de Identidad
-    expect(find.text('Paso 2 de 5'), findsOneWidget);
+    expect(find.text('Paso 2 de 6'), findsOneWidget);
     expect(find.text('¿Cuál es tu identificación?'), findsOneWidget);
     expect(find.text('Número de documento:'), findsOneWidget);
 
@@ -50,7 +50,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 3. PASO 3: Correo Electrónico
-    expect(find.text('Paso 3 de 5'), findsOneWidget);
+    expect(find.text('Paso 3 de 6'), findsOneWidget);
     expect(find.text('¿Cuál es tu correo electrónico?'), findsOneWidget);
     expect(find.text('Correo electrónico:'), findsOneWidget);
 
@@ -60,7 +60,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 4. PASO 4: Celular
-    expect(find.text('Paso 4 de 5'), findsOneWidget);
+    expect(find.text('Paso 4 de 6'), findsOneWidget);
     expect(find.text('¿Cuál es tu número celular?'), findsOneWidget);
     expect(find.text('Teléfono:'), findsOneWidget);
 
@@ -69,17 +69,29 @@ void main() {
     await tester.tap(find.text('Continuar'));
     await tester.pumpAndSettle();
 
-    // 5. PASO 5: Contraseña y Confirmación
-    expect(find.text('Paso 5 de 5'), findsOneWidget);
+    // 5. PASO 5: Contraseña de Acceso
+    expect(find.text('Paso 5 de 6'), findsOneWidget);
     expect(find.text('Crea tu clave de acceso'), findsOneWidget);
     expect(find.text('Contraseña:'), findsOneWidget);
     expect(find.text('Verificación de contraseña:'), findsOneWidget);
+
+    // Escribir contraseña y avanzar al Paso 6
+    await tester.enterText(find.byType(TextField).at(0), '123456');
+    await tester.enterText(find.byType(TextField).at(1), '123456');
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+
+    // 6. PASO 6: PIN Transaccional de 4 Dígitos
+    expect(find.text('Paso 6 de 6'), findsOneWidget);
+    expect(find.text('Crea tu PIN de seguridad'), findsOneWidget);
+    expect(find.text('PIN Transaccional (4 dígitos):'), findsOneWidget);
+    expect(find.text('Confirma tu PIN:'), findsOneWidget);
     expect(find.text('Crear mi cuenta'), findsOneWidget);
 
     // Probar el botón "Atrás" para regresar de forma transitiva
     await tester.tap(find.text('Atrás'));
     await tester.pumpAndSettle();
-    expect(find.text('Paso 4 de 5'), findsOneWidget);
-    expect(find.text('¿Cuál es tu número celular?'), findsOneWidget);
+    expect(find.text('Paso 5 de 6'), findsOneWidget);
+    expect(find.text('Crea tu clave de acceso'), findsOneWidget);
   });
 }

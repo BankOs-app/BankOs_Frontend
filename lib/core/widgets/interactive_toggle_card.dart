@@ -20,8 +20,8 @@ class InteractiveToggleCard extends StatelessWidget {
     required this.subtitle,
     required this.value,
     required this.onChanged,
-    this.activeBadgeText = 'Activado',
-    this.inactiveBadgeText = 'Desactivado',
+    this.activeBadgeText = 'ON',
+    this.inactiveBadgeText = 'OFF',
     this.activeBadgeColor = const Color(0xFF059669),
   });
 
@@ -74,18 +74,24 @@ class InteractiveToggleCard extends StatelessWidget {
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                            horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
                           color: value
-                              ? activeBadgeColor.withValues(alpha: 0.12)
-                              : const Color(0xFFE2E8F0),
+                              ? const Color(0xFFDCFCE7)
+                              : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: value
+                                ? const Color(0xFF86EFAC)
+                                : const Color(0xFFE2E8F0),
+                            width: 0.8,
+                          ),
                         ),
                         child: Text(
                           value ? activeBadgeText : inactiveBadgeText,
                           style: TextStyle(
                             color: value
-                                ? activeBadgeColor
+                                ? const Color(0xFF16A34A)
                                 : const Color(0xFF64748B),
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
@@ -111,15 +117,17 @@ class InteractiveToggleCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            // Switch interactivo ON / OFF
-            Switch.adaptive(
-              value: value,
-              onChanged: onChanged,
-              activeColor: AppColors.primaryNavy,
-              activeTrackColor: const Color(0xFF93C5FD),
-              inactiveThumbColor: Colors.white,
-              inactiveTrackColor: const Color(0xFFCBD5E1),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            // Switch interactivo ON / OFF (con hit-target unificado al tocar la tarjeta o el switch)
+            IgnorePointer(
+              child: Switch.adaptive(
+                value: value,
+                onChanged: (_) {},
+                activeColor: AppColors.primaryNavy,
+                activeTrackColor: const Color(0xFF93C5FD),
+                inactiveThumbColor: Colors.white,
+                inactiveTrackColor: const Color(0xFFCBD5E1),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
             ),
           ],
         ),

@@ -10,6 +10,7 @@ import '../../domain/entities/static_exchange_rate.dart';
 import '../providers/operations_providers.dart';
 import '../providers/operations_state.dart';
 import '../widgets/multi_currency_conversion_card.dart';
+import '../widgets/transaction_pin_modal.dart';
 
 class WithdrawScreen extends ConsumerStatefulWidget {
   const WithdrawScreen({super.key});
@@ -98,6 +99,15 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
       return;
     }
 
+    final brandAccent = bank.accentColor;
+    final authorized = await TransactionPinModal.show(
+      context,
+      title: 'Retiro desde ${bank.name}',
+      amountFormatted: '$withdrawCurr $amountText',
+      accentColor: brandAccent,
+    );
+    if (!authorized || !mounted) return;
+
     final success = await ref
         .read(operationsNotifierProvider.notifier)
         .executeWithdrawFromCard(
@@ -181,10 +191,6 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
     final availableCards = _selectedBank != null
         ? operationsState.getCardsForBank(_selectedBank!.id)
         : <BankCardEntity>[];
-
-    if (_selectedCard == null && availableCards.isNotEmpty) {
-      _selectedCard = availableCards.first;
-    }
 
     _withdrawCurrency ??=
         _selectedCard?.currency ?? _selectedBank?.currency ?? 'COP';
@@ -300,6 +306,10 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<BankCardEntity>(
                       value: _selectedCard,
+                      hint: const Text(
+                        'Selecciona número de cuenta a debitar...',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      ),
                       dropdownColor: Colors.white,
                       isExpanded: true,
                       icon: const Icon(Icons.keyboard_arrow_down,
@@ -308,7 +318,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
                         return DropdownMenuItem<BankCardEntity>(
                           value: card,
                           child: Text(
-                            '${card.cardTypeLabel} (${card.maskedCardNumber}) - Saldo: ${card.formattedBalance}',
+                            '${card.cardTypeLabel} - No. ${card.cardNumber} (Saldo: ${card.formattedBalance})',
                             style: const TextStyle(
                               color: AppColors.primaryNavy,
                               fontSize: 13,
@@ -346,45 +356,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
 
               const SizedBox(height: 18),
 
-              // 3. DIVISA A RETIRAR
-              Text(
-                Tr.withdrawCurrencyLabel(lang),
-                style: const TextStyle(
-                  color: AppColors.primaryNavy,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              Row(
-                children: ['COP', 'USD', 'EUR'].map((curr) {
-                  final isSel = _withdrawCurrency == curr;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: ChoiceChip(
-                      label: Text(curr == 'EUR'
-                          ? 'EUR (€)'
-                          : (curr == 'USD' ? 'USD (\$)' : 'COP (\$)')),
-                      selected: isSel,
-                      selectedColor: AppColors.brandBlue,
-                      backgroundColor: AppColors.softBackground,
-                      labelStyle: TextStyle(
-                        color: isSel ? Colors.white : AppColors.primaryNavy,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      onSelected: (s) {
-                        if (s) setState(() => _withdrawCurrency = curr);
-                      },
-                    ),
-                  );
-                }).toList(),
-              ),
-
-              const SizedBox(height: 18),
-
-              // 4. MONTO A RETIRAR
+              // 3. MONTO A RETIRAR
               Text(
                 Tr.withdrawAmount(lang),
                 style: const TextStyle(

@@ -453,7 +453,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                   _buildKpiItem(Tr.baasVolume(lang), '\$14.2M USD',
                       primaryColor == Colors.black ? const Color(0xFF0F172A) : primaryColor),
                   Container(width: 1, height: 28, color: const Color(0xFFCBD5E1)),
-                  _buildKpiItem(Tr.isolation(lang), '100% RLS', const Color(0xFF059669)),
+                  _buildKpiItem(Tr.isolation(lang), '100% Activa', const Color(0xFF059669)),
                 ],
               ),
             ),
@@ -600,11 +600,14 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (modalCtx) {
-        return Center(
+        return Align(
+          alignment: Alignment.bottomCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 540),
             child: Container(
+              width: double.infinity,
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -814,7 +817,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                        '¡Banco $name creado exitosamente con aislamiento RLS!'),
+                                        '¡Banco $name creado exitosamente!'),
                                     backgroundColor: const Color(0xFF10B981),
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -1088,14 +1091,14 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
         'status': 'INFO',
       },
       {
-        'event': 'RLS-GUARD-003',
+        'event': 'AUDIT-SEC-003',
         'title': isEs
-            ? 'Verificación de Aislamiento de Datos RLS'
-            : 'RLS Data Isolation Verification',
+            ? 'Verificación de Seguridad Institucional'
+            : 'Institutional Security Verification',
         'actor': 'BankOs Core Engine',
         'detail': isEs
-            ? '100% de consultas aisladas por tenant_id ${currentBank.tenantId}.'
-            : '100% queries isolated by tenant_id ${currentBank.tenantId}.',
+            ? 'Canales de comunicación seguros y cifrados para ${currentBank.name}.'
+            : 'Secure encrypted communication channels for ${currentBank.name}.',
         'time': isEs ? 'Hace 1 hora' : '1 hour ago',
         'status': 'SECURE',
       },
@@ -2652,11 +2655,14 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (ctx) {
-        return Center(
+        return Align(
+          alignment: Alignment.bottomCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 540),
             child: Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
                 color: Colors.white,
@@ -2703,8 +2709,8 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                   _buildDetailRow(
                       Tr.tenantIdLabel(lang),
                       isSuperAdmin
-                          ? 'bank_bankos_global'
-                          : bank.tenantId),
+                          ? 'BANKOS-GLOBAL-01'
+                          : 'BANK-${bank.code.toUpperCase()}-01'),
                   _buildDetailRow(Tr.accessLevel(lang),
                       isSuperAdmin ? Tr.totalAccess(lang) : Tr.institutionalAccess(lang)),
                   _buildDetailRow(Tr.dataIsolation(lang),
@@ -2745,13 +2751,16 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (modalContext, setModalState) {
-            return Center(
+            return Align(
+              alignment: Alignment.bottomCenter,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 540),
                 child: Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: const BoxDecoration(
                     color: Colors.white,
@@ -2853,11 +2862,14 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (ctx) {
-        return Center(
+        return Align(
+          alignment: Alignment.bottomCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 540),
             child: Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
                 color: Colors.white,
@@ -2925,11 +2937,14 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (ctx) {
-        return Center(
+        return Align(
+          alignment: Alignment.bottomCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 540),
             child: Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
                 color: Colors.white,
@@ -3233,7 +3248,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
       OperationRecordEntity(
         id: 'bos_tx_01',
         type: OperationType.deposit,
-        title: 'Capitalización BaaS Multi-tenant',
+        title: 'Capitalización Bancaria Institucional',
         description: 'Aporte de liquidez centralizada para operaciones interbancarias',
         amount: 50000.0,
         currency: 'USD',

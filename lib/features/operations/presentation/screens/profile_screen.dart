@@ -6,7 +6,9 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_locale_provider.dart';
 import '../../../../core/widgets/interactive_toggle_card.dart';
 import '../../../../core/widgets/language_segmented_switch.dart';
+import '../../../auth/data/datasources/auth_remote_data_source.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../providers/operations_providers.dart';
 
 /// PANTALLA DE PERFIL (BankOs):
 /// - Animaciones fluidas Container Transform (`OpenContainer`) en cada tarjeta del menú.
@@ -28,18 +30,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // Estados interactivos configurables por el usuario (ON / OFF)
   bool _pushNotifications = true;
   bool _emailAlertsEnabled = true;
-  bool _biometricsEnabled = true;
+  late bool _biometricsEnabled;
   bool _digitalTokenEnabled = true;
   bool _loginAlertsEnabled = true;
   bool _cardAutoLockEnabled = true;
-  final Set<String> _preferredCurrencies = {'COP', 'USD'};
+
+  @override
+  void initState() {
+    super.initState();
+    _biometricsEnabled = AuthRemoteDataSourceImpl.isBiometricsEnabled;
+  }
 
   // =========================================================================
   // VISTAS MODALES / DE DETALLE PARA CONTAINER TRANSFORM
   // =========================================================================
 
   Widget _buildPersonalDataContent(
-      BuildContext context, AppLanguage lang, VoidCallback onClose) {
+      BuildContext context, StateSetter setModalState, AppLanguage lang, VoidCallback onClose) {
     final isEs = lang == AppLanguage.es;
     final authUser = ref.read(authNotifierProvider).user;
     final displayName = (authUser?.name != null &&
@@ -118,10 +125,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         const SizedBox(height: 10),
         _buildInfoCard(
-          icon: Icons.domain_rounded,
-          label: isEs ? 'Tenant Asignado' : 'Assigned Tenant',
-          value: 'tenant_bankos_01 (RLS Activo)',
-          badgeText: isEs ? 'Aislado' : 'Isolated',
+          icon: Icons.verified_user_rounded,
+          label: isEs ? 'Estado de la cuenta' : 'Account Status',
+          value: isEs ? 'Titular Activo y Verificado' : 'Active & Verified Holder',
+          badgeText: isEs ? 'Verificado' : 'Verified',
+          badgeColor: const Color(0xFF10B981),
         ),
         const SizedBox(height: 10),
         _buildInfoCard(
@@ -158,7 +166,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildSecurityContent(
-      BuildContext context, AppLanguage lang, VoidCallback onClose) {
+      BuildContext context, StateSetter setModalState, AppLanguage lang, VoidCallback onClose) {
     final isEs = lang == AppLanguage.es;
 
     return Column(
@@ -209,31 +217,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         const SizedBox(height: 20),
 
-        // 1. Control interactivo de Autenticación Biométrica (ON / OFF)
-        InteractiveToggleCard(
-          icon: Icons.fingerprint_rounded,
-          title: isEs ? 'Autenticación biométrica' : 'Biometric Auth',
-          subtitle: _biometricsEnabled
-              ? (isEs
-                  ? 'FaceID / Huella activa'
-                  : 'FaceID / TouchID Active')
-              : (isEs
-                  ? 'Autenticación biométrica desactivada'
-                  : 'Biometric authentication disabled'),
-          value: _biometricsEnabled,
-          activeBadgeText: isEs ? 'Activada' : 'Enabled',
-          inactiveBadgeText: isEs ? 'Desactivada' : 'Disabled',
-          onChanged: (val) {
-            setState(() => _biometricsEnabled = val);
-          },
-        ),
+        // 1. Control interactivo de Autenticación Biométrica (Face ID en Apple / Huella Dactilar en Android)
+        Builder(builder: (context) {
+          final isApple = Theme.of(context).platform == TargetPlatform.iOS ||
+              Theme.of(context).platform == TargetPlatform.macOS;
+          final bioTitle = isApple
+              ? 'Face ID'
+              : (isEs ? 'Huella dactilar' : 'Fingerprint Auth');
+          final bioSubtitle = _biometricsEnabled
+              ? (isApple
+                  ? (isEs ? 'Reconocimiento facial activo' : 'Face ID recognition active')
+                  : (isEs ? 'Sensor de huella dactilar activo' : 'Fingerprint sensor active'))
+              : (isApple
+                  ? (isEs ? 'Reconocimiento facial desactivado' : 'Face ID disabled')
+                  : (isEs ? 'Sensor de huella dactilar desactivado' : 'Fingerprint sensor disabled'));
+          final bioIcon = isApple ? Icons.face_rounded : Icons.fingerprint_rounded;
+
+          return InteractiveToggleCard(
+            icon: bioIcon,
+            title: bioTitle,
+            subtitle: bioSubtitle,
+            value: _biometricsEnabled,
+            activeBadgeText: 'ON',
+            inactiveBadgeText: 'OFF',
+            onChanged: (val) {
+              AuthRemoteDataSourceImpl.isBiometricsEnabled = val;
+              setModalState(() => _biometricsEnabled = val);
+              setState(() => _biometricsEnabled = val);
+            },
+          );
+        }),
 
         const SizedBox(height: 10),
 
         // 2. Control interactivo de Token Digital BankOs (ON / OFF)
         InteractiveToggleCard(
           icon: Icons.vpn_key_rounded,
-          title: isEs ? 'Token digital BankOs' : 'Digital Token',
+          title: isEs ? 'Token digital de seguridad' : 'Digital Security Token',
           subtitle: _digitalTokenEnabled
               ? (isEs
                   ? 'Sincronizado vía OTP dinámico'
@@ -242,10 +262,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ? 'Generación de OTP pausada'
                   : 'Dynamic OTP generation paused'),
           value: _digitalTokenEnabled,
-          activeBadgeText: isEs ? 'Activo' : 'Active',
-          inactiveBadgeText: isEs ? 'Inactivo' : 'Inactive',
+          activeBadgeText: 'ON',
+          inactiveBadgeText: 'OFF',
           activeBadgeColor: const Color(0xFF0284C7),
           onChanged: (val) {
+            setModalState(() => _digitalTokenEnabled = val);
             setState(() => _digitalTokenEnabled = val);
           },
         ),
@@ -260,9 +281,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ? (isEs ? 'Notificación inmediata activa' : 'Instant alerts active')
               : (isEs ? 'Alertas de acceso pausadas' : 'Access alerts paused'),
           value: _loginAlertsEnabled,
-          activeBadgeText: isEs ? 'Activa' : 'Active',
-          inactiveBadgeText: isEs ? 'Pausada' : 'Paused',
+          activeBadgeText: 'ON',
+          inactiveBadgeText: 'OFF',
           onChanged: (val) {
+            setModalState(() => _loginAlertsEnabled = val);
             setState(() => _loginAlertsEnabled = val);
           },
         ),
@@ -277,10 +299,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ? (isEs ? 'Protección tras 5 min' : 'Protected after 5 min')
               : (isEs ? 'Protección desactivada' : 'Protection disabled'),
           value: _cardAutoLockEnabled,
-          activeBadgeText: isEs ? 'Activo' : 'Active',
-          inactiveBadgeText: isEs ? 'Inactivo' : 'Inactive',
+          activeBadgeText: 'ON',
+          inactiveBadgeText: 'OFF',
           activeBadgeColor: const Color(0xFF0284C7),
           onChanged: (val) {
+            setModalState(() => _cardAutoLockEnabled = val);
             setState(() => _cardAutoLockEnabled = val);
           },
         ),
@@ -311,7 +334,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildConfigContent(
-      BuildContext context, AppLanguage lang, VoidCallback onClose) {
+      BuildContext context, StateSetter setModalState, AppLanguage lang, VoidCallback onClose) {
     final isEs = lang == AppLanguage.es;
 
     return Column(
@@ -420,9 +443,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ? 'Alertas en tiempo real pausadas'
                   : 'Real-time push alerts paused'),
           value: _pushNotifications,
-          activeBadgeText: isEs ? 'Activadas' : 'Enabled',
-          inactiveBadgeText: isEs ? 'Desactivadas' : 'Disabled',
+          activeBadgeText: 'ON',
+          inactiveBadgeText: 'OFF',
           onChanged: (val) {
+            setModalState(() => _pushNotifications = val);
             setState(() => _pushNotifications = val);
           },
         ),
@@ -436,88 +460,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ? (isEs ? 'Comprobantes de transacción activos' : 'Transaction receipts active')
               : (isEs ? 'Alertas por correo pausadas' : 'Email alerts paused'),
           value: _emailAlertsEnabled,
-          activeBadgeText: isEs ? 'Activadas' : 'Enabled',
-          inactiveBadgeText: isEs ? 'Desactivadas' : 'Disabled',
+          activeBadgeText: 'ON',
+          inactiveBadgeText: 'OFF',
           onChanged: (val) {
+            setModalState(() => _emailAlertsEnabled = val);
             setState(() => _emailAlertsEnabled = val);
           },
         ),
 
         const SizedBox(height: 10),
 
-        // Divisas preferidas del titular con selección interactiva
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.softBackground,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: const Icon(Icons.currency_exchange_rounded,
-                        color: AppColors.primaryNavy, size: 16),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    isEs
-                        ? 'Divisas preferidas del titular'
-                        : 'Preferred Titular Currencies',
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: ['COP', 'USD', 'EUR'].map((curr) {
-                  final isSelected = _preferredCurrencies.contains(curr);
-                  return ChoiceChip(
-                    label: Text(
-                      curr == 'COP'
-                          ? 'COP (Pesos)'
-                          : (curr == 'USD'
-                              ? 'USD (Dólares)'
-                              : 'EUR (Euros)'),
-                    ),
-                    selected: isSelected,
-                    selectedColor: AppColors.primaryNavy,
-                    backgroundColor: Colors.white,
-                    labelStyle: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : AppColors.primaryNavy,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    onSelected: (selected) {
-                      setState(() {
-                        if (selected) {
-                          _preferredCurrencies.add(curr);
-                        } else if (_preferredCurrencies.length > 1) {
-                          _preferredCurrencies.remove(curr);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
+        // Biometría: Face ID (Apple) / Huella Dactilar (Android) con switch interactivo ON / OFF
+        InteractiveToggleCard(
+          icon: Icons.fingerprint_rounded,
+          title: isEs ? 'Face ID / Huella Dactilar' : 'Face ID / Fingerprint Auth',
+          subtitle: _biometricsEnabled
+              ? (isEs
+                  ? 'Autenticación biométrica activa para acceso rápido'
+                  : 'Biometric authentication active for fast access')
+              : (isEs
+                  ? 'Autenticación biométrica desactivada'
+                  : 'Biometric authentication disabled'),
+          value: _biometricsEnabled,
+          activeBadgeText: 'ON',
+          inactiveBadgeText: 'OFF',
+          onChanged: (val) {
+            setModalState(() => _biometricsEnabled = val);
+            setState(() => _biometricsEnabled = val);
+          },
         ),
 
         const SizedBox(height: 24),
@@ -546,7 +516,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildHelpContent(
-      BuildContext context, AppLanguage lang, VoidCallback onClose) {
+      BuildContext context, StateSetter setModalState, AppLanguage lang, VoidCallback onClose) {
     final isEs = lang == AppLanguage.es;
 
     return Column(
@@ -641,13 +611,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _confirmLogout(BuildContext context, AppLanguage lang) {
     final isEs = lang == AppLanguage.es;
+    final currentBank = ref.read(operationsNotifierProvider).currentBank;
+    final bankName = currentBank.isGlobal ? 'BankOS Core Global' : currentBank.name;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Center(
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (context) => Align(
+        alignment: Alignment.bottomCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 540),
           child: Container(
+            width: double.infinity,
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -693,8 +669,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 16),
                 Text(
                   isEs
-                      ? '¿Estás seguro de que deseas salir de tu cuenta BankOS? Deberás ingresar tus credenciales nuevamente.'
-                      : 'Are you sure you want to sign out from BankOS? You will need to log in again.',
+                      ? '¿Estás seguro de que deseas salir de tu cuenta de $bankName? Deberás ingresar tus credenciales nuevamente.'
+                      : 'Are you sure you want to sign out from your $bankName account? You will need to log in again.',
                   style: const TextStyle(
                     color: Color(0xFF64748B),
                     fontSize: 13,
@@ -845,36 +821,51 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: widget.showBackButton
-            ? IconButton(
+      appBar: widget.showBackButton
+          ? AppBar(
+              backgroundColor: const Color(0xFFF8FAFC),
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              surfaceTintColor: Colors.transparent,
+              leading: IconButton(
                 icon: const Icon(
                   Icons.arrow_back_ios_new,
                   color: AppColors.primaryNavy,
                   size: 20,
                 ),
                 onPressed: () => Navigator.pop(context),
-              )
-            : null,
-        title: Text(
-          isEs ? 'Mi perfil' : 'My Profile',
-          style: const TextStyle(
-            color: AppColors.primaryNavy,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-            child: Column(
-              children: [
+              ),
+              title: Text(
+                isEs ? 'Mi perfil' : 'My Profile',
+                style: const TextStyle(
+                  color: AppColors.primaryNavy,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              centerTitle: true,
+            )
+          : null,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                children: [
+                  if (!widget.showBackButton) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      isEs ? 'Mi perfil' : 'My Profile',
+                      style: const TextStyle(
+                        color: AppColors.primaryNavy,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 const SizedBox(height: 12),
 
                 // Avatar & Profile Picture
@@ -991,8 +982,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         _buildContainerTransformTile(
                           icon: Icons.person_outline_rounded,
                           title: Tr.personalData(lang),
-                          contentBuilder: (ctx, close) =>
-                              _buildPersonalDataContent(ctx, lang, close),
+                          contentBuilder: (ctx, setModalState, close) =>
+                              _buildPersonalDataContent(ctx, setModalState, lang, close),
                         ),
                         const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
@@ -1000,8 +991,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         _buildContainerTransformTile(
                           icon: Icons.shield_outlined,
                           title: Tr.security(lang),
-                          contentBuilder: (ctx, close) =>
-                              _buildSecurityContent(ctx, lang, close),
+                          contentBuilder: (ctx, setModalState, close) =>
+                              _buildSecurityContent(ctx, setModalState, lang, close),
                         ),
                         const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
@@ -1025,8 +1016,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                             ),
                           ),
-                          contentBuilder: (ctx, close) =>
-                              _buildConfigContent(ctx, lang, close),
+                          contentBuilder: (ctx, setModalState, close) =>
+                              _buildConfigContent(ctx, setModalState, lang, close),
                         ),
                         const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
@@ -1034,8 +1025,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         _buildContainerTransformTile(
                           icon: Icons.help_outline_rounded,
                           title: Tr.help(lang),
-                          contentBuilder: (ctx, close) =>
-                              _buildHelpContent(ctx, lang, close),
+                          contentBuilder: (ctx, setModalState, close) =>
+                              _buildHelpContent(ctx, setModalState, lang, close),
                         ),
                       ],
                     ),
@@ -1084,14 +1075,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  // Modal limpio, elegante y nativo estilo iOS/Android moderno
+  // Modal limpio, elegante y nativo estilo iOS/Android moderno pegado al piso
   Widget _buildContainerTransformTile({
     required IconData icon,
     required String title,
-    required Widget Function(BuildContext, VoidCallback) contentBuilder,
+    required Widget Function(BuildContext, StateSetter, VoidCallback) contentBuilder,
     Widget? trailingWidget,
   }) {
     return _buildOptionTile(
@@ -1103,13 +1095,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
+          barrierColor: Colors.black.withValues(alpha: 0.5),
           builder: (ctx) {
             return StatefulBuilder(
               builder: (modalContext, setModalState) {
-                return Center(
+                return Align(
+                  alignment: Alignment.bottomCenter,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 540),
                     child: Container(
+                      width: double.infinity,
                       decoration: const BoxDecoration(
                         color: Colors.white,
                         borderRadius:
@@ -1118,7 +1113,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
                       child: SingleChildScrollView(
                         child: contentBuilder(
-                            modalContext, () => Navigator.of(ctx).pop()),
+                            modalContext, setModalState, () => Navigator.of(ctx).pop()),
                       ),
                     ),
                   ),

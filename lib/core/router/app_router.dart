@@ -28,7 +28,7 @@ abstract class AppRouter {
   static const String profilePath = '/profile';
   static const String adminPath = '/admin';
 
-  /// Transición limpia, sutil y suave tipo Fade (100% libre de distorsión, zoom o estiramientos)
+  /// Transición cinematográfica limpia, sutil y suave tipo Fade (eliminando saltos abruptos de color)
   static CustomTransitionPage<void> _buildFadePage({
     required LocalKey key,
     required Widget child,
@@ -36,13 +36,13 @@ abstract class AppRouter {
     return CustomTransitionPage<void>(
       key: key,
       child: child,
-      transitionDuration: const Duration(milliseconds: 180),
-      reverseTransitionDuration: const Duration(milliseconds: 140),
+      transitionDuration: const Duration(milliseconds: 400),
+      reverseTransitionDuration: const Duration(milliseconds: 300),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
           opacity: CurvedAnimation(
             parent: animation,
-            curve: Curves.easeOut,
+            curve: Curves.easeInOutCubic,
           ),
           child: child,
         );

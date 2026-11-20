@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../../core/widgets/bankos_logo.dart';
+import '../../data/datasources/auth_remote_data_source.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../../operations/presentation/providers/operations_providers.dart';
 import '../providers/auth_providers.dart';
@@ -47,7 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Por favor ingresa tu PIN de 4 dígitos.'),
+          content: Text('Por favor ingresa tu contraseña.'),
           backgroundColor: Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
         ),
@@ -86,6 +87,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleBiometricLogin() async {
+    final isApple = Theme.of(context).platform == TargetPlatform.iOS ||
+        Theme.of(context).platform == TargetPlatform.macOS;
+
+    if (!AuthRemoteDataSourceImpl.isBiometricsEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isApple
+                ? 'Face ID está desactivado. Inicia sesión con tus credenciales para activarlo.'
+                : 'La huella dactilar está desactivada. Inicia sesión con tus credenciales para activarla.',
+          ),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final success =
         await ref.read(authNotifierProvider.notifier).loginWithBiometrics();
 
@@ -107,10 +126,56 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authNotifierProvider);
     final operationsState = ref.watch(operationsNotifierProvider);
     final currentBank = operationsState.currentBank;
+    final isSuperAdmin = currentBank.isGlobal;
     final isLoading = authState.status == AuthStatus.loading;
 
+    // Configuración estética y sobria según el banco activo (Bancolombia, Santander, Nu, Bogotá)
+    final slug = currentBank.code.toLowerCase();
+    final Color buttonBgColor;
+    final Color buttonTextColor;
+    final BorderSide? buttonBorder;
+    final Color linkColor;
+
+    if (isSuperAdmin) {
+      buttonBgColor = const Color(0xFF0052FF);
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      linkColor = const Color(0xFF0052FF);
+    } else if (slug.contains('lombia')) {
+      buttonBgColor = const Color(0xFF0F172A);
+      buttonTextColor = const Color(0xFFFDDA24);
+      buttonBorder = BorderSide(
+        color: const Color(0xFFFDDA24).withValues(alpha: 0.6),
+        width: 1.2,
+      );
+      linkColor = const Color(0xFF0F172A);
+    } else if (slug.contains('santander')) {
+      buttonBgColor = const Color(0xFFEC0000);
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      linkColor = const Color(0xFFEC0000);
+    } else if (slug.contains('nu')) {
+      buttonBgColor = const Color(0xFF820AD1);
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      linkColor = const Color(0xFF820AD1);
+    } else if (slug.contains('bogota')) {
+      buttonBgColor = const Color(0xFF002D72);
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      linkColor = const Color(0xFF004BB1);
+    } else {
+      buttonBgColor = currentBank.primaryColor;
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      linkColor = currentBank.primaryColor;
+    }
+
+    final isApple = Theme.of(context).platform == TargetPlatform.iOS ||
+        Theme.of(context).platform == TargetPlatform.macOS;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -134,7 +199,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           TextButton.icon(
                             onPressed: () => context.go('/select-tenant'),
-                            icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                            icon: const Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.primaryNavy),
                             label: const Text(
                               'Elegir otro banco',
                               style: TextStyle(
@@ -146,43 +211,86 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 14),
 
-                      // BankOs Logo Centered
-                      const Center(
-                        child: BankOsLogo(
-                          iconSize: 52,
-                          fontSize: 36,
-                          textColor: AppColors.primaryNavy,
+                      // Cabecera Principal Institucional: Logo y Marca Oficial del Banco Seleccionado
+                      if (isSuperAdmin) ...[
+                        const Center(
+                          child: BankOsLogo(
+                            iconSize: 52,
+                            fontSize: 34,
+                            textColor: AppColors.primaryNavy,
+                          ),
                         ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // Badge del banco activo seleccionado
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            BankBrandLogo(bank: currentBank, size: 18, showName: false),
-                            const SizedBox(width: 8),
-                            Text(
-                              currentBank.name,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryNavy,
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.shield_rounded, color: Color(0xFF0052FF), size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'BankOs Core Global • SuperAdmin',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryNavy,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                      ] else ...[
+                        Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: (buttonBorder?.color ?? buttonBgColor).withValues(alpha: 0.35),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: BankBrandLogo(bank: currentBank, size: 52, showName: false),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                currentBank.name,
+                                style: const TextStyle(
+                                  color: AppColors.primaryNavy,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: -0.4,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
 
                       const SizedBox(height: 16),
 
@@ -190,16 +298,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         'Iniciar sesión',
                         style: TextStyle(
                           color: AppColors.primaryNavy,
-                          fontSize: 24,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        'Ingresa a tu cuenta y gestiona tu dinero de forma segura.',
+                      Text(
+                        isSuperAdmin
+                            ? 'Ingresa tus credenciales de Administrador General para operar de forma segura.'
+                            : 'Ingresa a tu cuenta de ${currentBank.name} de forma segura.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
                           fontSize: 13,
                         ),
                       ),
@@ -211,6 +321,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         controller: _emailController,
                         hintText: 'Correo electrónico',
                         keyboardType: TextInputType.emailAddress,
+                        isDark: false,
                       ),
 
                       const SizedBox(height: 16),
@@ -220,39 +331,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         controller: _passwordController,
                         hintText: 'Contraseña',
                         isPassword: true,
+                        isDark: false,
                       ),
 
                       const SizedBox(height: 24),
 
-                      // Iniciar sesión Action Button
+                      // Iniciar sesión Action Button adaptado a la identidad del banco
                       SizedBox(
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
                           onPressed: isLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryNavy,
-                            foregroundColor: Colors.white,
+                            backgroundColor: buttonBgColor,
+                            foregroundColor: buttonTextColor,
                             elevation: 0,
+                            side: buttonBorder,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
                           ),
                           child: isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 22,
                                   height: 22,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.2,
-                                    color: Colors.white,
+                                    color: buttonTextColor,
                                   ),
                                 )
-                              : const Text(
+                              : Text(
                                   'Iniciar sesión',
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 0.2,
+                                    color: buttonTextColor,
                                   ),
                                 ),
                         ),
@@ -264,34 +378,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       TextButton(
                         onPressed: () => context.go('/forgot-password'),
                         style: TextButton.styleFrom(
-                          foregroundColor: AppColors.brandBlue,
+                          foregroundColor: linkColor,
                         ),
-                        child: const Text(
+                        child: Text(
                           '¿Olvidaste tu contraseña?',
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
+                            color: linkColor,
                           ),
                         ),
                       ),
 
                       const SizedBox(height: 8),
 
-                      // Biometrics Action Button
+                      // Biometrics Action Button (Face ID en Apple / Huella en Android)
                       OutlinedButton.icon(
                         onPressed: isLoading ? null : _handleBiometricLogin,
-                        icon: const Icon(Icons.fingerprint_rounded, size: 24),
-                        label: const Text(
-                          'Ingresar con huella digital',
-                          style: TextStyle(
+                        icon: Icon(
+                          isApple ? Icons.face_rounded : Icons.fingerprint_rounded,
+                          size: 24,
+                          color: AppColors.primaryNavy,
+                        ),
+                        label: Text(
+                          isApple
+                              ? 'Ingresar con Face ID'
+                              : 'Ingresar con huella dactilar',
+                          style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
+                            color: AppColors.primaryNavy,
                           ),
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primaryNavy,
+                          backgroundColor: Colors.white,
                           side: const BorderSide(
-                              color: Color(0xFFE2E8F0), width: 1.2),
+                              color: Color(0xFFCBD5E1), width: 1.2),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -300,36 +423,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
 
-
                       const Spacer(),
 
-                      // Bottom Register link
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 24.0, top: 16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              '¿Aún no tienes cuenta? ',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13,
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () => context.go('/register'),
-                              child: const Text(
-                                'Registrarse',
+                      // Bottom Register link (Oculto para SuperAdmin por seguridad)
+                      if (!isSuperAdmin)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 24.0, top: 16.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                '¿Aún no tienes cuenta? ',
                                 style: TextStyle(
-                                  color: AppColors.brandBlue,
+                                  color: Color(0xFF64748B),
                                   fontSize: 13,
-                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
+                              GestureDetector(
+                                onTap: () => context.go('/register'),
+                                child: Text(
+                                  'Registrarse',
+                                  style: TextStyle(
+                                    color: linkColor,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        const SizedBox(height: 24),
                     ],
                   ),
                 ),

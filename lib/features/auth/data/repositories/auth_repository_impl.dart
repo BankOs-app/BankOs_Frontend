@@ -29,6 +29,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String phone,
     required String password,
+    String transactionalPin = '1234',
   }) {
     return remoteDataSource.register(
       fullName: fullName,
@@ -36,6 +37,7 @@ class AuthRepositoryImpl implements AuthRepository {
       email: email,
       phone: phone,
       password: password,
+      transactionalPin: transactionalPin,
     );
   }
 }

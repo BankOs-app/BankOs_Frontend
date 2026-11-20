@@ -75,6 +75,7 @@ class AuthNotifier extends Notifier<AuthState> {
     required String email,
     required String phone,
     required String password,
+    String transactionalPin = '1234',
   }) async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
@@ -85,6 +86,7 @@ class AuthNotifier extends Notifier<AuthState> {
         email: email,
         phone: phone,
         password: password,
+        transactionalPin: transactionalPin,
       );
       state = state.copyWith(
         status: AuthStatus.authenticated,

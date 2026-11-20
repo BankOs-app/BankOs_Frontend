@@ -17,7 +17,7 @@ class BankAccountEntity {
     this.tenantId = 'tenant_bankos_01',
   });
 
-  String get maskedAccountNumber => '•••• $accountNumber';
+  String get maskedAccountNumber => accountNumber;
 
   String get formattedBalance {
     final isDec = balance.truncateToDouble() != balance;

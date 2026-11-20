@@ -19,10 +19,7 @@ class ExternalOriginAccountEntity {
     this.balance = 0.0,
   });
 
-  String get maskedAccountNumber =>
-      accountNumber.length > 4
-          ? '•••• ${accountNumber.substring(accountNumber.length - 4)}'
-          : '•••• $accountNumber';
+  String get maskedAccountNumber => accountNumber;
 
   String get currencySymbol {
     if (currency == 'EUR') return '€';

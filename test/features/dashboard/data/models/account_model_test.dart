@@ -34,7 +34,7 @@ void main() {
       expect(result.balance, 12450000.0);
       expect(result.currency, 'COP');
       expect(result.isActive, true);
-      expect(result.maskedAccountNumber, '•••• 4829');
+      expect(result.maskedAccountNumber, '4829');
       expect(result.formattedBalance, '\$12,450,000 COP');
     });
   });

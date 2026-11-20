@@ -77,25 +77,25 @@ class Tr {
   static String adminAudit(AppLanguage lang) => _es(lang) ? 'Auditoría' : 'Audit';
   static String adminOps(AppLanguage lang) => _es(lang) ? 'Operaciones' : 'Operations';
   static String adminProfile(AppLanguage lang) => _es(lang) ? 'Perfil' : 'Profile';
-  static String adminTitle(AppLanguage lang) => _es(lang) ? 'Gestión de Tenants Bancarios' : 'Banking Tenants Management';
-  static String adminSubtitle(AppLanguage lang) => _es(lang) ? 'Aprovisiona y administra instituciones financieras en BankOs BaaS.' : 'Provision and manage financial institutions on BankOs BaaS.';
-  static String activeTenants(AppLanguage lang) => _es(lang) ? 'Tenants Activos' : 'Active Tenants';
+  static String adminTitle(AppLanguage lang) => _es(lang) ? 'Gestión de Entidades Bancarias' : 'Banking Entities Management';
+  static String adminSubtitle(AppLanguage lang) => _es(lang) ? 'Administra instituciones financieras autorizadas.' : 'Manage authorized financial institutions.';
+  static String activeTenants(AppLanguage lang) => _es(lang) ? 'Bancos Activos' : 'Active Banks';
   static String baasVolume(AppLanguage lang) => _es(lang) ? 'Volumen BaaS' : 'BaaS Volume';
-  static String isolation(AppLanguage lang) => _es(lang) ? 'Aislamiento' : 'Isolation';
-  static String createNewBank(AppLanguage lang) => _es(lang) ? '+ Crear Nuevo Banco (Tenant)' : '+ Create New Bank (Tenant)';
+  static String isolation(AppLanguage lang) => _es(lang) ? 'Seguridad' : 'Security';
+  static String createNewBank(AppLanguage lang) => _es(lang) ? '+ Crear Nuevo Banco' : '+ Create New Bank';
   static String registeredTenants(AppLanguage lang) => _es(lang) ? 'Instituciones Registradas' : 'Registered Institutions';
   static String operational(AppLanguage lang) => _es(lang) ? 'OPERATIVO' : 'OPERATIONAL';
   static String activeCount(AppLanguage lang, int count) => _es(lang) ? '$count Activas' : '$count Active';
 
   // Admin - Config Tab
-  static String tenantConfig(AppLanguage lang) => _es(lang) ? 'Configuración del Tenant' : 'Tenant Settings';
+  static String tenantConfig(AppLanguage lang) => _es(lang) ? 'Configuración Institucional' : 'Institutional Settings';
   static String tenantConfigSubtitle(AppLanguage lang, String name) => _es(lang) ? 'Parámetros operativos de $name' : 'Operational parameters for $name';
   static String transferFeeLabel(AppLanguage lang) => _es(lang) ? 'Comisión por Transferencia Interna (%):' : 'Internal Transfer Fee (%):';
   static String dailyLimitLabel(AppLanguage lang) => _es(lang) ? 'Límite Diario Operativo por Cuenta:' : 'Daily Account Limit:';
   static String requireBiometrics(AppLanguage lang) => _es(lang) ? 'Requerir Biometría / MFA Obligatorio' : 'Require Biometrics / Mandatory MFA';
   static String requireBiometricsSub(AppLanguage lang) => _es(lang) ? 'Exigir validación biométrica en retiros y transferencias.' : 'Require biometric validation on withdrawals and transfers.';
   static String enabledModules(AppLanguage lang) => _es(lang) ? 'Módulos BaaS Habilitados:' : 'Enabled BaaS Modules:';
-  static String saveTenantConfig(AppLanguage lang) => _es(lang) ? 'Guardar Configuraciones del Tenant' : 'Save Tenant Settings';
+  static String saveTenantConfig(AppLanguage lang) => _es(lang) ? 'Guardar Parámetros' : 'Save Parameters';
 
   // Admin - Audit Tab
   static String auditTitle(AppLanguage lang) => _es(lang) ? 'Auditar Logs de Seguridad' : 'Audit Security Logs';
@@ -143,11 +143,11 @@ class Tr {
   static String adminBankRole(AppLanguage lang, String bank) => _es(lang) ? 'Administrador $bank' : '$bank Administrator';
   static String idBadge(AppLanguage lang) => _es(lang) ? 'ID de Matrícula' : 'License ID';
   static String assignedEntity(AppLanguage lang) => _es(lang) ? 'Entidad Asignada' : 'Assigned Entity';
-  static String tenantIdLabel(AppLanguage lang) => _es(lang) ? 'ID de Tenant' : 'Tenant ID';
+  static String tenantIdLabel(AppLanguage lang) => _es(lang) ? 'Código Institucional' : 'Institutional Code';
   static String activeRegion(AppLanguage lang) => _es(lang) ? 'Región Activa' : 'Active Region';
   static String accessLevel(AppLanguage lang) => _es(lang) ? 'Nivel de Acceso' : 'Access Level';
-  static String dataIsolation(AppLanguage lang) => _es(lang) ? 'Aislamiento de Datos' : 'Data Isolation';
-  static String dedicatedSchemaValue(AppLanguage lang) => _es(lang) ? 'Esquema Dedicado + Ledger RLS Inmutable' : 'Dedicated Schema + Immutable RLS Ledger';
+  static String dataIsolation(AppLanguage lang) => _es(lang) ? 'Protocolo de Seguridad' : 'Security Protocol';
+  static String dedicatedSchemaValue(AppLanguage lang) => _es(lang) ? 'Cifrado Bancario 256-bit + Ledger Verificado' : '256-bit Banking Encryption + Verified Ledger';
   static String totalAccess(AppLanguage lang) => _es(lang) ? 'Acceso Total' : 'Full Access';
   static String institutionalAccess(AppLanguage lang) => _es(lang) ? 'Institucional' : 'Institutional';
   static String securityControlsTitle(AppLanguage lang) => _es(lang) ? 'Controles de Seguridad Institucional' : 'Institutional Security Controls';
@@ -165,14 +165,14 @@ class Tr {
       : 'Are you sure you want to sign out from the administrative console?';
 
   // Admin - Modal Crear Tenant
-  static String modalCreateTitle(AppLanguage lang) => _es(lang) ? 'Crear Nuevo Banco (Tenant)' : 'Create New Bank (Tenant)';
+  static String modalCreateTitle(AppLanguage lang) => _es(lang) ? 'Crear Nuevo Banco' : 'Create New Bank';
   static String modalCreateSub(AppLanguage lang) => _es(lang) ? 'Aprovisiona una nueva institución financiera en BankOs Cloud.' : 'Provision a new financial institution on BankOs Cloud.';
   static String bankNameLabel(AppLanguage lang) => _es(lang) ? 'Nombre del Banco o Entidad:' : 'Bank or Entity Name:';
-  static String codeLabel(AppLanguage lang) => _es(lang) ? 'Código / Tenant ID:' : 'Code / Tenant ID:';
+  static String codeLabel(AppLanguage lang) => _es(lang) ? 'Código de Entidad:' : 'Entity Code:';
   static String currencyLabel(AppLanguage lang) => _es(lang) ? 'Divisa Base Operativa:' : 'Base Operating Currency:';
   static String subdomainLabel(AppLanguage lang) => _es(lang) ? 'Subdominio asignado:' : 'Assigned subdomain:';
-  static String isolationInfo(AppLanguage lang) => _es(lang) ? 'Aislamiento 100% RLS + Esquema Dedicado por Tenant.' : '100% RLS Isolation + Dedicated Schema per Tenant.';
-  static String provisionButton(AppLanguage lang) => _es(lang) ? 'Aprovisionar y Crear Banco (Tenant)' : 'Provision and Create Bank (Tenant)';
+  static String isolationInfo(AppLanguage lang) => _es(lang) ? 'Seguridad Bancaria de Alto Nivel con Entornos Protegidos.' : 'High-level Banking Security with Protected Environments.';
+  static String provisionButton(AppLanguage lang) => _es(lang) ? 'Crear Entidad Bancaria' : 'Create Banking Entity';
 
   // Operations
   static String depositFunds(AppLanguage lang) => _es(lang) ? 'Depósito de Fondos' : 'Funds Deposit';
@@ -211,7 +211,7 @@ class Tr {
   static String inDollars(AppLanguage lang) => _es(lang) ? 'En Dólares' : 'In Dollars';
   static String inEuros(AppLanguage lang) => _es(lang) ? 'En Euros' : 'In Euros';
   static String estimatedDestination(AppLanguage lang, String dest) => _es(lang) ? 'Abono estimado en destino ($dest):' : 'Estimated credit at destination ($dest):';
-  static String tenantRatesLabel(AppLanguage lang) => _es(lang) ? 'Tasas Tenant: 1 USD ≈ \$4,150 COP • 1 EUR ≈ 1.08 USD' : 'Tenant Rates: 1 USD ≈ \$4,150 COP • 1 EUR ≈ 1.08 USD';
+  static String tenantRatesLabel(AppLanguage lang) => _es(lang) ? 'Tasas de Cambio: 1 USD ≈ \$4,150 COP • 1 EUR ≈ 1.08 USD' : 'Exchange Rates: 1 USD ≈ \$4,150 COP • 1 EUR ≈ 1.08 USD';
   static String noHiddenSpread(AppLanguage lang) => _es(lang) ? 'Sin spread oculto' : 'No hidden spread';
 
   // History Screen

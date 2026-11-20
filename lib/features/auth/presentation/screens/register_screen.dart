@@ -3,7 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/widgets/bankos_logo.dart';
+import '../../../../core/widgets/bank_brand_logo.dart';
+import '../../../operations/presentation/providers/operations_providers.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/auth_text_field.dart';
 
@@ -17,7 +18,7 @@ class RegisterScreen extends ConsumerStatefulWidget {
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final PageController _pageController = PageController();
   int _currentStep = 0;
-  static const int _totalSteps = 5;
+  static const int _totalSteps = 6;
 
   // Form Controllers
   final TextEditingController _fullNameController = TextEditingController();
@@ -26,6 +27,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _passwordConfirmController = TextEditingController();
+  final TextEditingController _pinController = TextEditingController();
+  final TextEditingController _pinConfirmController = TextEditingController();
 
   String _documentType = 'Cédula de Ciudadanía (CC)';
   bool _isLoading = false;
@@ -39,6 +42,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
+    _pinController.dispose();
+    _pinConfirmController.dispose();
     super.dispose();
   }
 
@@ -122,6 +127,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         }
         return true;
 
+      case 5:
+        final pin = _pinController.text.trim();
+        final pinConfirm = _pinConfirmController.text.trim();
+        if (pin.isEmpty) {
+          _showSnackBar('Por favor, define tu PIN transaccional de 4 dígitos.');
+          return false;
+        }
+        if (pin.length != 4 || !RegExp(r'^\d{4}$').hasMatch(pin)) {
+          _showSnackBar('El PIN de seguridad debe contener exactamente 4 dígitos numéricos.');
+          return false;
+        }
+        if (pin != pinConfirm) {
+          _showSnackBar('Los PINes ingresados no coinciden. Por favor verifica.');
+          return false;
+        }
+        return true;
+
       default:
         return true;
     }
@@ -165,6 +187,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
     final password = _passwordController.text;
+    final pin = _pinController.text.trim();
 
     setState(() {
       _isLoading = true;
@@ -176,6 +199,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           email: email,
           phone: phone,
           password: password,
+          transactionalPin: pin,
         );
 
     setState(() {
@@ -220,6 +244,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 _buildSummaryRow('Documento:', '$documentNumber ($_documentType)'),
                 _buildSummaryRow('Correo:', email),
                 _buildSummaryRow('Teléfono:', phone),
+                _buildSummaryRow('PIN Operaciones:', '•••• (Configurado)'),
               ],
             ),
             actions: [
@@ -286,12 +311,50 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final progress = (_currentStep + 1) / _totalSteps;
+    final operationsState = ref.watch(operationsNotifierProvider);
+    final currentBank = operationsState.currentBank;
+    final slug = currentBank.code.toLowerCase();
+
+    // Colores según la identidad del banco activo
+    final Color buttonBgColor;
+    final Color buttonTextColor;
+    final BorderSide? buttonBorder;
+    final Color brandAccent;
+
+    if (slug.contains('lombia')) {
+      buttonBgColor = const Color(0xFF0F172A);
+      buttonTextColor = const Color(0xFFFDDA24);
+      buttonBorder = BorderSide(
+        color: const Color(0xFFFDDA24).withValues(alpha: 0.6),
+        width: 1.2,
+      );
+      brandAccent = const Color(0xFFFDDA24);
+    } else if (slug.contains('santander')) {
+      buttonBgColor = const Color(0xFFEC0000);
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      brandAccent = const Color(0xFFEC0000);
+    } else if (slug.contains('nu')) {
+      buttonBgColor = const Color(0xFF820AD1);
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      brandAccent = const Color(0xFF820AD1);
+    } else if (slug.contains('bogota')) {
+      buttonBgColor = const Color(0xFF002D72);
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      brandAccent = const Color(0xFF004BB1);
+    } else {
+      buttonBgColor = currentBank.primaryColor;
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      brandAccent = currentBank.accentColor;
+    }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF8FAFC),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -315,13 +378,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             margin: const EdgeInsets.only(right: 16, top: 14, bottom: 14),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.softBackground,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
             child: Text(
               'Paso ${_currentStep + 1} de $_totalSteps',
-              style: const TextStyle(
-                color: AppColors.brandBlue,
+              style: TextStyle(
+                color: brandAccent == Colors.black ? const Color(0xFFFDDA24) : brandAccent,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -332,85 +396,68 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Barra de progreso animada
+            // Indicador de pasos exclusivo con números (sin barra duplicada, Foto 4)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-              child: Column(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: TweenAnimationBuilder<double>(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeInOut,
-                      tween: Tween<double>(begin: 0, end: progress),
-                      builder: (context, value, child) {
-                        return LinearProgressIndicator(
-                          value: value,
-                          backgroundColor: const Color(0xFFE2E8F0),
-                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.brandBlue),
-                          minHeight: 6,
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Indicador de pasos con iconos / números
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(_totalSteps, (index) {
-                      final isDone = index < _currentStep;
-                      final isCurrent = index == _currentStep;
-                      return Row(
-                        children: [
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: isDone
-                                  ? const Color(0xFF10B981)
-                                  : isCurrent
-                                      ? AppColors.primaryNavy
-                                      : const Color(0xFFF1F5F9),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isCurrent
-                                    ? AppColors.brandBlue
-                                    : Colors.transparent,
-                                width: 2,
-                              ),
-                            ),
-                            child: Center(
-                              child: isDone
-                                  ? const Icon(Icons.check, size: 16, color: Colors.white)
-                                  : Text(
-                                      '${index + 1}',
-                                      style: TextStyle(
-                                        color: isCurrent
-                                            ? Colors.white
-                                            : const Color(0xFF94A3B8),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                            ),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(_totalSteps, (index) {
+                  final isDone = index < _currentStep;
+                  final isCurrent = index == _currentStep;
+                  final stepColor = isDone
+                      ? const Color(0xFF10B981)
+                      : isCurrent
+                          ? buttonBgColor
+                          : const Color(0xFFE2E8F0);
+                  final textColor = isDone
+                      ? Colors.white
+                      : isCurrent
+                          ? buttonTextColor
+                          : const Color(0xFF94A3B8);
+
+                  return Row(
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: stepColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isCurrent
+                                ? (brandAccent == Colors.black ? const Color(0xFFFDDA24) : brandAccent)
+                                : const Color(0xFFCBD5E1),
+                            width: 1.5,
                           ),
-                          if (index < _totalSteps - 1)
-                            Container(
-                              width: (MediaQuery.of(context).size.width - 48 - (28 * _totalSteps)) / (_totalSteps - 1),
-                              height: 2,
-                              color: isDone
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFFE2E8F0),
-                            ),
-                        ],
-                      );
-                    }),
-                  ),
-                ],
+                        ),
+                        child: Center(
+                          child: isDone
+                              ? const Icon(Icons.check, size: 16, color: Colors.white)
+                              : Text(
+                                  '${index + 1}',
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      if (index < _totalSteps - 1)
+                        Container(
+                          width: (MediaQuery.of(context).size.width - 48 - (30 * _totalSteps)) / (_totalSteps - 1),
+                          height: 2.5,
+                          color: isDone
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFCBD5E1),
+                        ),
+                    ],
+                  );
+                }),
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
 
             // PageView con transición suave entre pasos
             Expanded(
@@ -423,6 +470,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   _buildStep3Email(),
                   _buildStep4Phone(),
                   _buildStep5Password(),
+                  _buildStep6TransactionalPin(),
                 ],
               ),
             ),
@@ -433,7 +481,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               decoration: const BoxDecoration(
                 color: Colors.white,
                 border: Border(
-                  top: BorderSide(color: Color(0xFFF1F5F9), width: 1.5),
+                  top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
                 ),
               ),
               child: Column(
@@ -448,6 +496,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             onPressed: _isLoading ? null : _prevStep,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.primaryNavy,
+                              backgroundColor: Colors.white,
                               side: const BorderSide(color: Color(0xFFCBD5E1)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
@@ -467,8 +516,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _nextStep,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryNavy,
-                            foregroundColor: Colors.white,
+                            backgroundColor: buttonBgColor,
+                            foregroundColor: buttonTextColor,
+                            side: buttonBorder,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -476,12 +526,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             ),
                           ),
                           child: _isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 22,
                                   height: 22,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.2,
-                                    color: Colors.white,
+                                    color: buttonTextColor,
                                   ),
                                 )
                               : Row(
@@ -491,9 +541,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                       _currentStep == _totalSteps - 1
                                           ? 'Crear mi cuenta'
                                           : 'Continuar',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
+                                        color: buttonTextColor,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -502,6 +553,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                           ? Icons.check_circle_outline_rounded
                                           : Icons.arrow_forward_rounded,
                                       size: 18,
+                                      color: buttonTextColor,
                                     ),
                                   ],
                                 ),
@@ -518,16 +570,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         const Text(
                           '¿Ya tienes una cuenta? ',
                           style: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: Color(0xFF94A3B8),
                             fontSize: 13,
                           ),
                         ),
                         GestureDetector(
                           onTap: () => context.go('/login'),
-                          child: const Text(
+                          child: Text(
                             'Iniciar sesión',
                             style: TextStyle(
-                              color: AppColors.brandBlue,
+                              color: brandAccent == Colors.black ? const Color(0xFFFDDA24) : brandAccent,
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -547,13 +599,50 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   // PASO 1: Nombre Completo
   Widget _buildStep1Name() {
+    final currentBank = ref.watch(operationsNotifierProvider).currentBank;
+    final slug = currentBank.code.toLowerCase();
+    final brandAccent = slug.contains('lombia')
+        ? const Color(0xFFFDDA24)
+        : (slug.contains('santander')
+            ? const Color(0xFFEC0000)
+            : (slug.contains('nu')
+                ? const Color(0xFF820AD1)
+                : (slug.contains('bogota')
+                    ? const Color(0xFF004BB1)
+                    : currentBank.accentColor)));
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Center(
-            child: BankOsLogo(iconSize: 38, fontSize: 26, textColor: AppColors.primaryNavy),
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: (brandAccent == Colors.black ? const Color(0xFF0F172A) : brandAccent).withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: (brandAccent == Colors.black ? const Color(0xFFFDDA24) : brandAccent).withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: BankBrandLogo(bank: currentBank, size: 48, showName: false),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  currentBank.name,
+                  style: TextStyle(
+                    color: slug.contains('lombia') ? const Color(0xFF0F172A) : brandAccent,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
           _buildStepHeader(
@@ -568,6 +657,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             hintText: 'Carlos Gómez',
             keyboardType: TextInputType.name,
             prefixIcon: Icons.person_outline_rounded,
+            isDark: false,
           ),
           const SizedBox(height: 20),
           _buildFeatureNotice(
@@ -597,7 +687,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: const Color(0xFF131D31),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
@@ -605,6 +695,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               child: DropdownButton<String>(
                 value: _documentType,
                 isExpanded: true,
+                dropdownColor: Colors.white,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
                 icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryNavy),
                 items: const [
                   DropdownMenuItem(value: 'Cédula de Ciudadanía (CC)', child: Text('Cédula de Ciudadanía (CC)')),
@@ -625,6 +717,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             hintText: 'Número de documento',
             keyboardType: TextInputType.number,
             prefixIcon: Icons.numbers_rounded,
+            isDark: false,
           ),
           const SizedBox(height: 20),
           _buildFeatureNotice(
@@ -656,6 +749,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             hintText: 'correo@ejemplo.com',
             keyboardType: TextInputType.emailAddress,
             prefixIcon: Icons.mail_outline_rounded,
+            isDark: false,
           ),
           const SizedBox(height: 20),
           _buildFeatureNotice(
@@ -687,6 +781,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             hintText: '+57 300 123 4567',
             keyboardType: TextInputType.phone,
             prefixIcon: Icons.phone_outlined,
+            isDark: false,
           ),
           const SizedBox(height: 20),
           _buildFeatureNotice(
@@ -709,7 +804,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           _buildStepHeader(
             icon: Icons.lock_outline_rounded,
             title: 'Crea tu clave de acceso',
-            subtitle: 'Define una contraseña segura o PIN maestro para autorizar todas tus transferencias y retiros.',
+            subtitle: 'Define una contraseña segura para iniciar sesión en tu cuenta bancaria.',
           ),
           const SizedBox(height: 24),
           _buildFieldLabel('Contraseña:'),
@@ -718,6 +813,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             hintText: 'Contraseña (mínimo 6 caracteres)',
             isPassword: true,
             prefixIcon: Icons.lock_rounded,
+            isDark: false,
           ),
           const SizedBox(height: 16),
           _buildFieldLabel('Verificación de contraseña:'),
@@ -726,6 +822,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             hintText: 'Confirmar contraseña',
             isPassword: true,
             prefixIcon: Icons.lock_reset_rounded,
+            isDark: false,
           ),
           const SizedBox(height: 20),
           _buildFeatureNotice(
@@ -738,25 +835,57 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
+  // PASO 6: PIN Transaccional de 4 Dígitos
+  Widget _buildStep6TransactionalPin() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildStepHeader(
+            icon: Icons.shield_rounded,
+            title: 'Crea tu PIN de seguridad',
+            subtitle: 'Define un PIN numérico de 4 dígitos para autorizar retiros, depósitos y transferencias.',
+          ),
+          const SizedBox(height: 24),
+          _buildFieldLabel('PIN Transaccional (4 dígitos):'),
+          AuthTextField(
+            controller: _pinController,
+            hintText: '4 dígitos numéricos (ej. 1234)',
+            isPassword: true,
+            keyboardType: TextInputType.number,
+            prefixIcon: Icons.pin_outlined,
+            isDark: false,
+          ),
+          const SizedBox(height: 16),
+          _buildFieldLabel('Confirma tu PIN:'),
+          AuthTextField(
+            controller: _pinConfirmController,
+            hintText: 'Repite tu PIN de 4 dígitos',
+            isPassword: true,
+            keyboardType: TextInputType.number,
+            prefixIcon: Icons.lock_reset_rounded,
+            isDark: false,
+          ),
+          const SizedBox(height: 20),
+          _buildFeatureNotice(
+            icon: Icons.verified_user_rounded,
+            title: 'Firma Digital de Operaciones',
+            description: 'Este PIN es exclusivo para autorizar movimientos de dinero y es independiente de tu contraseña de acceso.',
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStepHeader({
-    required IconData icon,
+    IconData? icon,
     required String title,
     required String subtitle,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFDBEAFE)),
-          ),
-          child: Icon(icon, color: AppColors.brandBlue, size: 24),
-        ),
-        const SizedBox(height: 14),
         Text(
           title,
           style: const TextStyle(
@@ -770,7 +899,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         Text(
           subtitle,
           style: const TextStyle(
-            color: AppColors.textSecondary,
+            color: Color(0xFF94A3B8),
             fontSize: 13,
             height: 1.4,
           ),
@@ -801,14 +930,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AppColors.softBackground,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: const Color(0xFF64748B), size: 20),
+          Icon(icon, color: const Color(0xFF94A3B8), size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -826,7 +955,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 Text(
                   description,
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
+                    color: Color(0xFF94A3B8),
                     fontSize: 11,
                     height: 1.35,
                   ),

@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/bank_brand_logo.dart';
+import '../../../operations/presentation/providers/operations_providers.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/auth_text_field.dart';
 
@@ -92,10 +94,50 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final operationsState = ref.watch(operationsNotifierProvider);
+    final currentBank = operationsState.currentBank;
+    final slug = currentBank.code.toLowerCase();
+
+    // Colores según el banco activo
+    final Color buttonBgColor;
+    final Color buttonTextColor;
+    final BorderSide? buttonBorder;
+    final Color brandAccent;
+
+    if (slug.contains('lombia')) {
+      buttonBgColor = const Color(0xFF0F172A);
+      buttonTextColor = const Color(0xFFFDDA24);
+      buttonBorder = BorderSide(
+        color: const Color(0xFFFDDA24).withValues(alpha: 0.6),
+        width: 1.2,
+      );
+      brandAccent = const Color(0xFFFDDA24);
+    } else if (slug.contains('santander')) {
+      buttonBgColor = const Color(0xFFEC0000);
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      brandAccent = const Color(0xFFEC0000);
+    } else if (slug.contains('nu')) {
+      buttonBgColor = const Color(0xFF820AD1);
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      brandAccent = const Color(0xFF820AD1);
+    } else if (slug.contains('bogota')) {
+      buttonBgColor = const Color(0xFF002D72);
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      brandAccent = const Color(0xFF004BB1);
+    } else {
+      buttonBgColor = currentBank.primaryColor;
+      buttonTextColor = Colors.white;
+      buttonBorder = null;
+      brandAccent = currentBank.accentColor;
+    }
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF8FAFC),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new,
@@ -118,14 +160,46 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 36),
+              const SizedBox(height: 16),
 
-              // Lock Illustration
-              _buildLockIllustration(),
+              // Cabecera Institucional Oficial del Banco
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: (brandAccent == Colors.black ? const Color(0xFFFDDA24) : brandAccent).withValues(alpha: 0.4),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: BankBrandLogo(bank: currentBank, size: 48, showName: false),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      currentBank.name,
+                      style: const TextStyle(
+                        color: AppColors.primaryNavy,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 24),
 
-              // Header Text matching the mockup
+              // Lock Illustration con tono de marca
+              _buildLockIllustration(brandAccent),
+
+              const SizedBox(height: 28),
+
+              // Header Text
               const Text(
                 'Ingresa tu correo electrónico\npara la recuperación',
                 textAlign: TextAlign.center,
@@ -137,22 +211,23 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Te enviaremos un código de recuperación a tu correo registrado.',
+              Text(
+                'Te enviaremos las instrucciones de recuperación a tu correo registrado en ${currentBank.name}.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
                   fontSize: 13,
                 ),
               ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
 
               // Email Input Field
               AuthTextField(
                 controller: _emailController,
                 hintText: 'Correo electrónico',
                 keyboardType: TextInputType.emailAddress,
+                isDark: false,
               ),
 
               const SizedBox(height: 24),
@@ -164,28 +239,30 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _handleSendRecoveryCode,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
-                    foregroundColor: Colors.white,
+                    backgroundColor: buttonBgColor,
+                    foregroundColor: buttonTextColor,
                     elevation: 0,
+                    side: buttonBorder,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   child: _isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 22,
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.2,
-                            color: Colors.white,
+                            color: buttonTextColor,
                           ),
                         )
-                      : const Text(
+                      : Text(
                           'Enviar código de recuperación',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.2,
+                            color: buttonTextColor,
                           ),
                         ),
                 ),
@@ -199,23 +276,23 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     );
   }
 
-  Widget _buildLockIllustration() {
+  Widget _buildLockIllustration(Color brandAccent) {
     return Container(
-      width: 120,
-      height: 120,
+      width: 104,
+      height: 104,
       decoration: BoxDecoration(
-        color: AppColors.softBackground,
+        color: brandAccent.withValues(alpha: 0.08),
         shape: BoxShape.circle,
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
+          color: brandAccent.withValues(alpha: 0.25),
           width: 1.5,
         ),
       ),
-      child: const Center(
+      child: Center(
         child: Icon(
           Icons.lock_reset_rounded,
-          color: AppColors.brandBlue,
-          size: 56,
+          color: brandAccent == Colors.black ? const Color(0xFF0F172A) : brandAccent,
+          size: 48,
         ),
       ),
     );

@@ -8,6 +8,7 @@ class UserEntity {
   final String? phone;
   final String? token;
   final UserRole role;
+  final String transactionalPin;
 
   const UserEntity({
     required this.id,
@@ -17,6 +18,7 @@ class UserEntity {
     this.phone,
     this.token,
     this.role = UserRole.client,
+    this.transactionalPin = '1234',
   });
 
   bool get isAdmin => role == UserRole.admin;

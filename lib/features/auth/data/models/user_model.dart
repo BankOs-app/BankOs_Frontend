@@ -9,6 +9,7 @@ class UserModel extends UserEntity {
     super.phone,
     super.token,
     super.role = UserRole.client,
+    super.transactionalPin = '1234',
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -22,6 +23,7 @@ class UserModel extends UserEntity {
       phone: json['phone'] as String?,
       token: json['token'] as String?,
       role: role,
+      transactionalPin: json['transactionalPin'] as String? ?? '1234',
     );
   }
 
@@ -34,6 +36,7 @@ class UserModel extends UserEntity {
       'phone': phone,
       'token': token,
       'role': role == UserRole.admin ? 'admin' : 'client',
+      'transactionalPin': transactionalPin,
     };
   }
 }

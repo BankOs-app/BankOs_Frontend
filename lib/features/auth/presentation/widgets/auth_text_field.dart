@@ -7,6 +7,7 @@ class AuthTextField extends StatefulWidget {
   final bool isPassword;
   final TextInputType keyboardType;
   final IconData? prefixIcon;
+  final bool isDark;
 
   const AuthTextField({
     super.key,
@@ -15,6 +16,7 @@ class AuthTextField extends StatefulWidget {
     this.isPassword = false,
     this.keyboardType = TextInputType.text,
     this.prefixIcon,
+    this.isDark = false,
   });
 
   @override
@@ -26,12 +28,17 @@ class _AuthTextFieldState extends State<AuthTextField> {
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = widget.isDark ? const Color(0xFF131D31) : AppColors.softBackground;
+    final borderColor = widget.isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final textColor = widget.isDark ? Colors.white : AppColors.textPrimary;
+    final hintColor = widget.isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.softBackground,
+        color: bgColor,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
+          color: borderColor,
           width: 1.2,
         ),
       ),
@@ -39,18 +46,18 @@ class _AuthTextFieldState extends State<AuthTextField> {
         controller: widget.controller,
         obscureText: widget.isPassword && _obscureText,
         keyboardType: widget.keyboardType,
-        style: const TextStyle(
-          color: AppColors.textPrimary,
+        style: TextStyle(
+          color: textColor,
           fontSize: 15,
         ),
         cursorColor: AppColors.brandBlue,
         decoration: InputDecoration(
           prefixIcon: widget.prefixIcon != null
-              ? Icon(widget.prefixIcon, color: const Color(0xFF94A3B8), size: 20)
+              ? Icon(widget.prefixIcon, color: hintColor, size: 20)
               : null,
           hintText: widget.hintText,
-          hintStyle: const TextStyle(
-            color: Color(0xFF94A3B8),
+          hintStyle: TextStyle(
+            color: hintColor,
             fontSize: 15,
           ),
           contentPadding: const EdgeInsets.symmetric(
@@ -64,7 +71,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
                     _obscureText
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
-                    color: const Color(0xFF94A3B8),
+                    color: hintColor,
                     size: 20,
                   ),
                   onPressed: () {

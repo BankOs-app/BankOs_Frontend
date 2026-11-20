@@ -5,8 +5,10 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../domain/entities/bank_card_entity.dart';
 import '../../domain/entities/registered_bank_entity.dart';
+import '../../domain/entities/static_exchange_rate.dart';
 import '../providers/operations_providers.dart';
 import '../providers/operations_state.dart';
+import '../widgets/transaction_pin_modal.dart';
 
 class TransferScreen extends ConsumerStatefulWidget {
   const TransferScreen({super.key});
@@ -24,8 +26,6 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
 
   RegisteredBankEntity? _selectedDestBank;
   BankCardEntity? _selectedDestCard;
-
-  static const double _tenantTransferFee = 2.50;
 
   @override
   void initState() {
@@ -54,19 +54,19 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     );
   }
 
-  Future<void> _submitTransfer() async {
+  void _proceedToPreview() {
     final origBank = _selectedOriginBank;
     final origCard = _selectedOriginCard;
     final destBank = _selectedDestBank;
     final destCard = _selectedDestCard;
 
     if (origBank == null || origCard == null) {
-      _showSnackBar('Selecciona el banco y tarjeta de origen.');
+      _showSnackBar('Selecciona el banco y cuenta de origen.');
       return;
     }
 
     if (destBank == null || destCard == null) {
-      _showSnackBar('Selecciona el banco y tarjeta de destino.');
+      _showSnackBar('Selecciona el banco y cuenta de destino.');
       return;
     }
 
@@ -76,36 +76,311 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     }
 
     if (!origCard.isActive) {
-      _showSnackBar('La tarjeta de origen no se encuentra activa.');
+      _showSnackBar('La cuenta de origen no se encuentra activa.');
       return;
     }
 
     if (!destCard.isActive) {
-      _showSnackBar('La tarjeta de destino no se encuentra activa.');
+      _showSnackBar('La cuenta de destino no se encuentra activa.');
       return;
     }
 
     final amountText = _amountController.text.trim();
     final amount = double.tryParse(amountText);
-    if (amount == null) {
-      _showSnackBar('Ingresa un monto numérico válido.');
+    if (amount == null || amount <= 0) {
+      _showSnackBar('Ingresa un monto numérico válido mayor a 0.');
       return;
     }
 
-    if (amount <= 0) {
-      _showSnackBar('El monto a transferir debe ser estrictamente positivo.');
-      return;
-    }
-
-    final totalRequired = amount + _tenantTransferFee;
-    if (origCard.availableBalance < totalRequired) {
+    if (origCard.availableBalance < amount) {
       _showSnackBar(
-        'Saldo insuficiente en ${origCard.cardTypeLabel} (${origCard.formattedBalance}). '
-        'Se requieren \$${totalRequired.toStringAsFixed(2)} ${origCard.currency} '
-        '(\$${amount.toStringAsFixed(2)} + \$$_tenantTransferFee comisión).',
+        'Saldo insuficiente en ${origBank.name}. Disponible: ${origCard.formattedBalance}.',
       );
       return;
     }
+
+    _showPreviewModal(
+      origBank: origBank,
+      origCard: origCard,
+      destBank: destBank,
+      destCard: destCard,
+      amount: amount,
+    );
+  }
+
+  void _showPreviewModal({
+    required RegisteredBankEntity origBank,
+    required BankCardEntity origCard,
+    required RegisteredBankEntity destBank,
+    required BankCardEntity destCard,
+    required double amount,
+  }) {
+    final isMultiCurrency = origCard.currency != destCard.currency;
+    final double exchangeRate;
+    final double recipientAmount;
+
+    if (isMultiCurrency) {
+      exchangeRate = StaticExchangeRate.getRate(origCard.currency, destCard.currency);
+      recipientAmount = amount * exchangeRate;
+    } else {
+      exchangeRate = 1.0;
+      recipientAmount = amount;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (modalContext) {
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540),
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.currency_exchange_rounded,
+                              color: Color(0xFF2563EB),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Detalle y Divisa a Recibir',
+                            style: TextStyle(
+                              color: AppColors.primaryNavy,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded,
+                            color: Color(0xFF64748B)),
+                        onPressed: () => Navigator.pop(modalContext),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Tarjeta destacada de monto que recibirá el destinatario
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF0F172A),
+                          origBank.primaryColor == Colors.black
+                              ? const Color(0xFF1E293B)
+                              : origBank.primaryColor,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'El destinatario recibirá exactamente:',
+                          style: TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${destCard.currency} \$${recipientAmount.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (isMultiCurrency) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              origCard.currency == 'COP' && destCard.currency == 'USD'
+                                  ? 'Tasa aplicada: 1 USD ≈ \$4,150 COP (1 COP = 0.000241 USD)'
+                                  : (origCard.currency == 'USD' && destCard.currency == 'COP'
+                                      ? 'Tasa aplicada: 1 USD ≈ \$4,150 COP'
+                                      : 'Tasa de cambio: 1 ${origCard.currency} = ${exchangeRate.toStringAsFixed(4)} ${destCard.currency}'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Desglose de Cuentas
+                  _buildPreviewRow(
+                    label: 'Cuenta de origen:',
+                    value: '${origBank.name} • No. ${origCard.cardNumber}',
+                  ),
+                  const SizedBox(height: 8),
+                  _buildPreviewRow(
+                    label: 'Cuenta destino:',
+                    value: '${destBank.name} • No. ${destCard.cardNumber}',
+                  ),
+                  const SizedBox(height: 8),
+                  _buildPreviewRow(
+                    label: 'Monto debitado:',
+                    value: '${origCard.currency} \$${amount.toStringAsFixed(2)}',
+                  ),
+                  const SizedBox(height: 8),
+                  _buildPreviewRow(
+                    label: 'Comisión de transferencia:',
+                    value: 'Gratis (\$0.00)',
+                    valueColor: const Color(0xFF16A34A),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Botón para autorizar y enviar
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(modalContext);
+                        _executeFinalTransfer(
+                          origBank: origBank,
+                          origCard: origCard,
+                          destBank: destBank,
+                          destCard: destCard,
+                          amount: amount,
+                          recipientAmount: recipientAmount,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryNavy,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'Confirmar y Enviar Fondos',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPreviewRow({
+    required String label,
+    required String value,
+    Color? valueColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.softBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: valueColor ?? AppColors.primaryNavy,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _executeFinalTransfer({
+    required RegisteredBankEntity origBank,
+    required BankCardEntity origCard,
+    required RegisteredBankEntity destBank,
+    required BankCardEntity destCard,
+    required double amount,
+    required double recipientAmount,
+  }) async {
+    final brandAccent = origBank.accentColor;
+    final authorized = await TransactionPinModal.show(
+      context,
+      title: 'Transferir a ${destBank.name}',
+      amountFormatted: '${origCard.currency} \$${amount.toStringAsFixed(2)}',
+      accentColor: brandAccent,
+    );
+    if (!authorized || !mounted) return;
 
     final success = await ref
         .read(operationsNotifierProvider.notifier)
@@ -117,7 +392,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
           amount: amount,
           concept: _conceptController.text.trim().isNotEmpty
               ? _conceptController.text.trim()
-              : 'Traspaso a ${destBank.name} (${destCard.maskedCardNumber})',
+              : 'Traspaso a ${destBank.name} (No. ${destCard.cardNumber})',
         );
 
     if (mounted) {
@@ -149,15 +424,11 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Se han transferido \$${amount.toStringAsFixed(2)} ${origCard.currency} desde ${origBank.name} hacia ${destBank.name}.',
+                  origCard.currency != destCard.currency
+                      ? 'Se debitaron \$${amount.toStringAsFixed(2)} ${origCard.currency} de tu cuenta en ${origBank.name} y se acreditaron \$${recipientAmount.toStringAsFixed(2)} ${destCard.currency} en la cuenta de ${destBank.name} (No. ${destCard.cardNumber}).'
+                      : 'Se han transferido \$${amount.toStringAsFixed(2)} ${origCard.currency} desde ${origBank.name} hacia ${destBank.name} (No. ${destCard.cardNumber}).',
                   style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Comisión del tenant: \$$_tenantTransferFee ${origCard.currency}',
-                  style: const TextStyle(
-                      color: Color(0xFF94A3B8), fontSize: 11),
+                      color: AppColors.textSecondary, fontSize: 13, height: 1.4),
                 ),
               ],
             ),
@@ -201,10 +472,6 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         ? operationsState.getCardsForBank(_selectedOriginBank!.id)
         : <BankCardEntity>[];
 
-    if (_selectedOriginCard == null && availableOriginCards.isNotEmpty) {
-      _selectedOriginCard = availableOriginCards.first;
-    }
-
     if (_selectedDestBank == null && banks.isNotEmpty) {
       final otherBanks =
           banks.where((b) => b.id != _selectedOriginBank?.id).toList();
@@ -215,10 +482,6 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     final availableDestCards = _selectedDestBank != null
         ? operationsState.getCardsForBank(_selectedDestBank!.id)
         : <BankCardEntity>[];
-
-    if (_selectedDestCard == null && availableDestCards.isNotEmpty) {
-      _selectedDestCard = availableDestCards.first;
-    }
 
     final isLoading = operationsState.status == OperationsStatus.loading;
 
@@ -233,7 +496,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
           onPressed: () => context.go('/home'),
         ),
         title: const Text(
-          'Transferencia Interna',
+          'Transferencia de Fondos',
           style: TextStyle(
             color: AppColors.primaryNavy,
             fontSize: 18,
@@ -299,7 +562,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
 
               const SizedBox(height: 10),
 
-              // Selector Tarjeta Origen
+              // Selector Tarjeta/Cuenta Origen con número de cuenta real
               if (availableOriginCards.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
@@ -311,6 +574,10 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<BankCardEntity>(
                       value: _selectedOriginCard,
+                      hint: const Text(
+                        'Selecciona número de cuenta de origen...',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      ),
                       dropdownColor: Colors.white,
                       isExpanded: true,
                       icon: const Icon(Icons.keyboard_arrow_down,
@@ -319,7 +586,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                         return DropdownMenuItem<BankCardEntity>(
                           value: card,
                           child: Text(
-                            '${card.cardTypeLabel} (${card.maskedCardNumber}) - Saldo: ${card.formattedBalance}',
+                            '${card.cardTypeLabel} - No. ${card.cardNumber} (${card.formattedBalance})',
                             style: const TextStyle(
                               color: AppColors.primaryNavy,
                               fontSize: 13,
@@ -390,7 +657,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
 
               const SizedBox(height: 10),
 
-              // Selector Tarjeta Destino
+              // Selector Tarjeta/Cuenta Destino con número real
               if (availableDestCards.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
@@ -402,6 +669,10 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<BankCardEntity>(
                       value: _selectedDestCard,
+                      hint: const Text(
+                        'Selecciona número de cuenta de destino...',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      ),
                       dropdownColor: Colors.white,
                       isExpanded: true,
                       icon: const Icon(Icons.keyboard_arrow_down,
@@ -410,7 +681,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                         return DropdownMenuItem<BankCardEntity>(
                           value: card,
                           child: Text(
-                            '${card.cardTypeLabel} (${card.maskedCardNumber}) - Saldo: ${card.formattedBalance}',
+                            '${card.cardTypeLabel} - No. ${card.cardNumber} (${card.formattedBalance})',
                             style: const TextStyle(
                               color: AppColors.primaryNavy,
                               fontSize: 13,
@@ -498,7 +769,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   style: const TextStyle(
                       color: AppColors.primaryNavy, fontSize: 13),
                   decoration: const InputDecoration(
-                    hintText: 'Ej. Pago de honorarios',
+                    hintText: 'Ej. Pago de servicios o envío a familiares',
                     hintStyle:
                         TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                     border: InputBorder.none,
@@ -510,12 +781,12 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
 
               const SizedBox(height: 28),
 
-              // Botón Confirmar Transferencia
+              // Botón Revisar y Continuar (Abre la pestaña de cotización y divisa)
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: isLoading ? null : _submitTransfer,
+                  onPressed: isLoading ? null : _proceedToPreview,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryNavy,
                     foregroundColor: Colors.white,
@@ -534,7 +805,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                           ),
                         )
                       : const Text(
-                          'Confirmar Transferencia',
+                          'Continuar y Revisar Divisa',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,

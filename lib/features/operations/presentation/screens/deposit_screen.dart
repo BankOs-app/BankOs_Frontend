@@ -10,6 +10,7 @@ import '../../domain/entities/registered_bank_entity.dart';
 import '../providers/operations_providers.dart';
 import '../providers/operations_state.dart';
 import '../widgets/multi_currency_conversion_card.dart';
+import '../widgets/transaction_pin_modal.dart';
 
 class DepositScreen extends ConsumerStatefulWidget {
   const DepositScreen({super.key});
@@ -79,6 +80,16 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
     }
 
     final isDestBankGlobal = destBank.isGlobal;
+    final brandAccent = destBank.accentColor;
+
+    final authorized = await TransactionPinModal.show(
+      context,
+      title: 'Depósito a ${destBank.name}',
+      amountFormatted: '${origin.currency} $amountText',
+      accentColor: brandAccent,
+    );
+    if (!authorized || !mounted) return;
+
     bool success;
 
     if (isDestBankGlobal) {
@@ -136,14 +147,6 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
         ? operationsState.getCardsForBank(_selectedDestBank!.id)
         : <BankCardEntity>[];
 
-    if (_selectedDestCard == null && availableDestCards.isNotEmpty) {
-      _selectedDestCard = availableDestCards.first;
-    }
-
-    if (_selectedOriginAccount == null && originAccounts.isNotEmpty) {
-      _selectedOriginAccount = originAccounts.first;
-    }
-
     final isLoading = operationsState.status == OperationsStatus.loading;
 
     return Scaffold(
@@ -197,6 +200,10 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<ExternalOriginAccountEntity>(
                       value: _selectedOriginAccount,
+                      hint: const Text(
+                        'Selecciona número de cuenta de origen...',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      ),
                       dropdownColor: Colors.white,
                       isExpanded: true,
                       icon: const Icon(Icons.keyboard_arrow_down,
@@ -205,7 +212,7 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
                         return DropdownMenuItem<ExternalOriginAccountEntity>(
                           value: origin,
                           child: Text(
-                            '${origin.bankName} - ${origin.accountType} (${origin.maskedAccountNumber}) - ${origin.formattedBalance}',
+                            '${origin.bankName} - No. ${origin.accountNumber} (${origin.formattedBalance})',
                             style: const TextStyle(
                               color: AppColors.primaryNavy,
                               fontSize: 13,
@@ -302,6 +309,10 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<BankCardEntity>(
                       value: _selectedDestCard,
+                      hint: const Text(
+                        'Selecciona número de cuenta de destino...',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                      ),
                       dropdownColor: Colors.white,
                       isExpanded: true,
                       icon: const Icon(Icons.keyboard_arrow_down,
@@ -310,7 +321,7 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
                         return DropdownMenuItem<BankCardEntity>(
                           value: card,
                           child: Text(
-                            '${card.cardTypeLabel} (${card.maskedCardNumber}) - Saldo: ${card.formattedBalance}',
+                            '${card.cardTypeLabel} - No. ${card.cardNumber} (${card.formattedBalance})',
                             style: const TextStyle(
                               color: AppColors.primaryNavy,
                               fontSize: 13,

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/data/datasources/auth_remote_data_source.dart';
 import '../../domain/entities/bank_account_entity.dart';
 import '../../domain/entities/bank_card_entity.dart';
 import '../../domain/entities/external_origin_account_entity.dart';
@@ -45,6 +46,7 @@ class OperationsNotifier extends Notifier<OperationsState> {
   }
 
   void switchActiveBank(RegisteredBankEntity bank) {
+    AuthRemoteDataSourceImpl.activeTenantSlug = bank.code;
     state = state.copyWith(activeBank: bank);
   }
 
