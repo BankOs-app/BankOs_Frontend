@@ -6,7 +6,6 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../../core/widgets/bankos_logo.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
-import '../../domain/entities/user_entity.dart';
 import '../../../operations/presentation/providers/operations_providers.dart';
 import '../providers/auth_providers.dart';
 import '../providers/auth_state.dart';
@@ -56,19 +55,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
-    final isAdminEmail = email.toLowerCase().contains('admin');
-    final role = isAdminEmail ? UserRole.admin : UserRole.client;
-
     final success = await ref.read(authNotifierProvider.notifier).login(
           email,
           password,
-          role: role,
         );
 
     if (success && mounted) {
-      ref.read(operationsNotifierProvider.notifier).switchActiveBankByEmail(email);
       final user = ref.read(authNotifierProvider).user;
-      if (user?.isAdmin == true || isAdminEmail) {
+      if (user?.isAdmin == true) {
         context.go('/admin');
       } else {
         context.go('/home');
@@ -110,9 +104,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (success && mounted) {
       final user = ref.read(authNotifierProvider).user;
-      if (user?.email != null) {
-        ref.read(operationsNotifierProvider.notifier).switchActiveBankByEmail(user!.email);
-      }
       if (user?.isAdmin == true) {
         context.go('/admin');
       } else {

@@ -951,6 +951,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
           'sourceAccountNumber': srcNumber,
           'destinationAccountNumber': dstNumber,
           'targetAmount': amount.toStringAsFixed(2),
+          'sourceAmount': amount.toStringAsFixed(2),
         },
         options: Options(
           headers: {

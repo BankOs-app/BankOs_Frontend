@@ -1,4 +1,4 @@
-enum UserRole { client, admin }
+enum UserRole { client, admin, superAdmin }
 
 class UserEntity {
   final String id;
@@ -21,5 +21,5 @@ class UserEntity {
     this.transactionalPin = '1234',
   });
 
-  bool get isAdmin => role == UserRole.admin;
+  bool get isAdmin => role == UserRole.admin || role == UserRole.superAdmin;
 }

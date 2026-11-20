@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../domain/entities/bank_card_entity.dart';
 import '../../domain/entities/registered_bank_entity.dart';
 import '../../domain/entities/static_exchange_rate.dart';
@@ -20,17 +21,16 @@ class TransferScreen extends ConsumerStatefulWidget {
 class _TransferScreenState extends ConsumerState<TransferScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _conceptController = TextEditingController();
-
-  RegisteredBankEntity? _selectedOriginBank;
-  BankCardEntity? _selectedOriginCard;
-
-  RegisteredBankEntity? _selectedDestBank;
-  BankCardEntity? _selectedDestCard;
+  final TextEditingController _destinationAccountController =
+      TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _amountController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _destinationAccountController.addListener(() {
       if (mounted) setState(() {});
     });
   }
@@ -39,6 +39,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   void dispose() {
     _amountController.dispose();
     _conceptController.dispose();
+    _destinationAccountController.dispose();
     super.dispose();
   }
 
@@ -55,20 +56,47 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   }
 
   void _proceedToPreview() {
-    final origBank = _selectedOriginBank;
-    final origCard = _selectedOriginCard;
-    final destBank = _selectedDestBank;
-    final destCard = _selectedDestCard;
-
-    if (origBank == null || origCard == null) {
-      _showSnackBar('Selecciona el banco y cuenta de origen.');
+    final operationsState = ref.read(operationsNotifierProvider);
+    final origBank = operationsState.currentBank;
+    final signedInUser = ref.read(authNotifierProvider).user;
+    final ownedCards = operationsState
+        .getCardsForBank(origBank.id)
+        .where((card) =>
+            signedInUser?.name != null &&
+            card.cardHolder.trim().toLowerCase() ==
+                signedInUser!.name!.trim().toLowerCase())
+        .toList();
+    if (ownedCards.isEmpty) {
+      _showSnackBar('No encontramos una cuenta asociada a tu sesión en ${origBank.name}.');
       return;
     }
+    final origCard = ownedCards.first;
 
-    if (destBank == null || destCard == null) {
-      _showSnackBar('Selecciona el banco y cuenta de destino.');
+    final destinationNumber = _destinationAccountController.text.trim();
+    if (!RegExp(r'^\d{6,30}$').hasMatch(destinationNumber)) {
+      _showSnackBar('Ingresa un número de cuenta válido (solo números).');
       return;
     }
+    final destinationCards = operationsState.cards
+        .where((card) => card.cardNumber.trim() == destinationNumber)
+        .toList();
+    if (destinationCards.isEmpty) {
+      _showSnackBar('No encontramos una cuenta con ese número.');
+      return;
+    }
+    if (destinationCards.length > 1) {
+      _showSnackBar('El número de cuenta no identifica una única cuenta destino.');
+      return;
+    }
+    final destCard = destinationCards.first;
+    final matchingBanks = operationsState.banks
+        .where((bank) => bank.id == destCard.bankId)
+        .toList();
+    if (matchingBanks.isEmpty) {
+      _showSnackBar('No encontramos la institución de la cuenta destino.');
+      return;
+    }
+    final destBank = matchingBanks.first;
 
     if (origCard.id == destCard.id) {
       _showSnackBar('La cuenta de origen y destino no pueden ser la misma.');
@@ -462,26 +490,29 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   @override
   Widget build(BuildContext context) {
     final operationsState = ref.watch(operationsNotifierProvider);
-    final banks = operationsState.banks;
-
-    if (_selectedOriginBank == null && banks.isNotEmpty) {
-      _selectedOriginBank = operationsState.currentBank;
-    }
-
-    final availableOriginCards = _selectedOriginBank != null
-        ? operationsState.getCardsForBank(_selectedOriginBank!.id)
-        : <BankCardEntity>[];
-
-    if (_selectedDestBank == null && banks.isNotEmpty) {
-      final otherBanks =
-          banks.where((b) => b.id != _selectedOriginBank?.id).toList();
-      _selectedDestBank =
-          otherBanks.isNotEmpty ? otherBanks.first : banks.first;
-    }
-
-    final availableDestCards = _selectedDestBank != null
-        ? operationsState.getCardsForBank(_selectedDestBank!.id)
-        : <BankCardEntity>[];
+    final currentBank = operationsState.currentBank;
+    final signedInUser = ref.watch(authNotifierProvider).user;
+    final ownedCards = operationsState
+        .getCardsForBank(currentBank.id)
+        .where((card) =>
+            signedInUser?.name != null &&
+            card.cardHolder.trim().toLowerCase() ==
+                signedInUser!.name!.trim().toLowerCase())
+        .toList();
+    final originCard = ownedCards.isEmpty ? null : ownedCards.first;
+    final destinationNumber = _destinationAccountController.text.trim();
+    final destinationCards = operationsState.cards
+        .where((card) => card.cardNumber.trim() == destinationNumber)
+        .toList();
+    final destinationCard =
+        destinationCards.isEmpty ? null : destinationCards.first;
+    final destinationBanks = destinationCard == null
+        ? <RegisteredBankEntity>[]
+        : operationsState.banks
+            .where((bank) => bank.id == destinationCard.bankId)
+            .toList();
+    final destinationBank =
+        destinationBanks.isEmpty ? null : destinationBanks.first;
 
     final isLoading = operationsState.status == OperationsStatus.loading;
 
@@ -522,87 +553,25 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               ),
               const SizedBox(height: 6),
 
-              // Selector Banco Origen
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppColors.softBackground,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<RegisteredBankEntity>(
-                    value: _selectedOriginBank,
-                    dropdownColor: Colors.white,
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down,
-                        color: AppColors.primaryNavy),
-                    items: banks.map((bank) {
-                      return DropdownMenuItem<RegisteredBankEntity>(
-                        value: bank,
-                        child: Text(
-                          '${bank.name} (${bank.currency})',
-                          style: const TextStyle(
-                            color: AppColors.primaryNavy,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (bank) {
-                      setState(() {
-                        _selectedOriginBank = bank;
-                        _selectedOriginCard = null;
-                      });
-                    },
+                child: Text(
+                  originCard == null
+                      ? 'No hay una cuenta asociada a esta sesión en ${currentBank.name}.'
+                      : '${currentBank.name} • ${originCard.cardTypeLabel} • No. ${originCard.cardNumber} (${originCard.formattedBalance})',
+                  style: const TextStyle(
+                    color: AppColors.primaryNavy,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-
-              const SizedBox(height: 10),
-
-              // Selector Tarjeta/Cuenta Origen con número de cuenta real
-              if (availableOriginCards.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.softBackground,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<BankCardEntity>(
-                      value: _selectedOriginCard,
-                      hint: const Text(
-                        'Selecciona número de cuenta de origen...',
-                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                      ),
-                      dropdownColor: Colors.white,
-                      isExpanded: true,
-                      icon: const Icon(Icons.keyboard_arrow_down,
-                          color: AppColors.primaryNavy),
-                      items: availableOriginCards.map((card) {
-                        return DropdownMenuItem<BankCardEntity>(
-                          value: card,
-                          child: Text(
-                            '${card.cardTypeLabel} - No. ${card.cardNumber} (${card.formattedBalance})',
-                            style: const TextStyle(
-                              color: AppColors.primaryNavy,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (card) {
-                        setState(() {
-                          _selectedOriginCard = card;
-                        });
-                      },
-                    ),
-                  ),
-                ),
 
               const SizedBox(height: 18),
 
@@ -617,87 +586,57 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               ),
               const SizedBox(height: 6),
 
-              // Selector Banco Destino
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.softBackground,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<RegisteredBankEntity>(
-                    value: _selectedDestBank,
-                    dropdownColor: Colors.white,
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down,
-                        color: AppColors.primaryNavy),
-                    items: banks.map((bank) {
-                      return DropdownMenuItem<RegisteredBankEntity>(
-                        value: bank,
-                        child: Text(
-                          '${bank.name} (${bank.currency})',
-                          style: const TextStyle(
-                            color: AppColors.primaryNavy,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (bank) {
-                      setState(() {
-                        _selectedDestBank = bank;
-                        _selectedDestCard = null;
-                      });
-                    },
+                child: TextField(
+                  controller: _destinationAccountController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(
+                    color: AppColors.primaryNavy,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Escribe el número de cuenta',
+                    prefixIcon: Icon(Icons.account_balance_rounded,
+                        color: AppColors.brandBlue, size: 20),
+                    border: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
-
-              const SizedBox(height: 10),
-
-              // Selector Tarjeta/Cuenta Destino con número real
-              if (availableDestCards.isNotEmpty)
+              if (destinationCard != null && destinationBank != null) ...[
+                const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.softBackground,
+                    color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<BankCardEntity>(
-                      value: _selectedDestCard,
-                      hint: const Text(
-                        'Selecciona número de cuenta de destino...',
-                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                      ),
-                      dropdownColor: Colors.white,
-                      isExpanded: true,
-                      icon: const Icon(Icons.keyboard_arrow_down,
-                          color: AppColors.primaryNavy),
-                      items: availableDestCards.map((card) {
-                        return DropdownMenuItem<BankCardEntity>(
-                          value: card,
-                          child: Text(
-                            '${card.cardTypeLabel} - No. ${card.cardNumber} (${card.formattedBalance})',
-                            style: const TextStyle(
-                              color: AppColors.primaryNavy,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (card) {
-                        setState(() {
-                          _selectedDestCard = card;
-                        });
-                      },
+                  child: Text(
+                    '${destinationBank.name} • ${destinationCard.currency} • ${destinationCard.cardTypeLabel}',
+                    style: const TextStyle(
+                      color: AppColors.primaryNavy,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
+              ],
+              if (destinationNumber.isNotEmpty && destinationCard == null) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'No encontramos una cuenta con ese número.',
+                  style: TextStyle(color: Color(0xFFDC2626), fontSize: 12),
+                ),
+              ],
 
               const SizedBox(height: 18),
 
@@ -730,7 +669,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.attach_money_rounded,
                         color: AppColors.brandBlue, size: 20),
-                    suffixText: _selectedOriginCard?.currency ?? 'COP',
+                    suffixText: originCard?.currency ?? 'COP',
                     suffixStyle: const TextStyle(
                       color: AppColors.brandBlue,
                       fontWeight: FontWeight.bold,

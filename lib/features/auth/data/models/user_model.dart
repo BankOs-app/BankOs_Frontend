@@ -14,7 +14,11 @@ class UserModel extends UserEntity {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final roleStr = json['role'] as String?;
-    final role = roleStr == 'admin' ? UserRole.admin : UserRole.client;
+    final role = roleStr == 'super_admin'
+        ? UserRole.superAdmin
+        : roleStr == 'admin'
+            ? UserRole.admin
+            : UserRole.client;
     return UserModel(
       id: json['id'] as String? ?? '',
       email: json['email'] as String? ?? '',
@@ -35,7 +39,11 @@ class UserModel extends UserEntity {
       'documentNumber': documentNumber,
       'phone': phone,
       'token': token,
-      'role': role == UserRole.admin ? 'admin' : 'client',
+      'role': role == UserRole.superAdmin
+          ? 'super_admin'
+          : role == UserRole.admin
+              ? 'admin'
+              : 'customer',
       'transactionalPin': transactionalPin,
     };
   }
