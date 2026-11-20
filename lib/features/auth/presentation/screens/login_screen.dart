@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/localization/app_locale_provider.dart';
+import '../../../../core/services/biometric_service.dart';
 import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../../core/widgets/bankos_logo.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
@@ -108,14 +109,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final enrolledUser =
         AuthRemoteDataSourceImpl.getEnrolledUserForTenant(currentBank.slug);
 
-    final verified = await BiometricAuthModal.show(
-      context,
-      bankName: currentBank.name,
-      userEmail: enrolledUser.email,
-      userName: enrolledUser.name ?? 'Cliente BankOS',
-      isApple: isApple,
-      lang: lang,
-    );
+    bool verified = false;
+
+    // 1. Intentar primero con el sensor biométrico nativo de Android (BiometricPrompt) / iOS
+    final canUseNative = await BiometricService.canAuthenticateWithBiometrics();
+    if (canUseNative) {
+      verified = await BiometricService.authenticate(
+        localizedReason: lang == AppLanguage.es
+            ? 'Escanea tu huella o rostro para ingresar a ${currentBank.name}'
+            : 'Scan your fingerprint or face to sign in to ${currentBank.name}',
+      );
+    }
+
+    // 2. Si no hay sensor nativo activo (o en emulador/web), mostrar el modal interactivo de BankOS
+    if (!verified && mounted) {
+      verified = await BiometricAuthModal.show(
+        context,
+        bankName: currentBank.name,
+        userEmail: enrolledUser.email,
+        userName: enrolledUser.name ?? 'Cliente BankOS',
+        isApple: isApple,
+        lang: lang,
+      );
+    }
 
     if (!verified || !mounted) return;
 
