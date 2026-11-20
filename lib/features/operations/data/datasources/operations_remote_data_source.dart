@@ -375,23 +375,34 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     OperationRecordEntity(
       id: 'tx_col_03',
       type: OperationType.internalTransfer,
-      title: 'Transferencia ACH Transfiya',
-      description: 'Envío de dinero interbancario hacia Nu',
+      title: 'Transferencia realizada',
+      description: 'Para: Banco de NU • Cta: 8008008001',
       amount: 1200000.00,
       currency: 'COP',
       timestamp: DateTime.now().subtract(const Duration(hours: 12)),
       originAccountId: 'acc_01',
       destinationAccountId: 'acc_nu_01',
+      sourceBankName: 'Bancolombia',
+      destinationBankName: 'Banco de NU',
+      sourceAccountNumber: '7007007001',
+      destinationAccountNumber: '8008008001',
+      isIncoming: false,
     ),
     OperationRecordEntity(
       id: 'tx_col_04',
-      type: OperationType.deposit,
-      title: 'Pago Factura Proveedores',
-      description: 'Transferencia recibida por servicios consultoría',
+      type: OperationType.internalTransfer,
+      title: 'Transferencia recibida',
+      description: 'De: Banco de Bogotá • Cta: 1001001001',
       amount: 2800000.00,
       currency: 'COP',
       timestamp: DateTime.now().subtract(const Duration(days: 1)),
-      originAccountId: 'acc_01',
+      originAccountId: 'acc_bogota_01',
+      destinationAccountId: 'acc_01',
+      sourceBankName: 'Banco de Bogotá',
+      destinationBankName: 'Bancolombia',
+      sourceAccountNumber: '1001001001',
+      destinationAccountNumber: '7007007001',
+      isIncoming: true,
     ),
     // Banco de Bogotá
     OperationRecordEntity(
@@ -546,6 +557,12 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     }
 
     return 'banco-lombia';
+  }
+
+  bool _matchesTenant(String slug, String bankName) {
+    final s = slug.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final b = bankName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return s.contains(b) || b.contains(s) || (s.contains('lombia') && b.contains('lombia'));
   }
 
   void _syncCardsWithAccounts() {
@@ -817,6 +834,11 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         } else {
           list = [];
         }
+        final myAccNumbers = _accounts.map((a) => a.accountNumber).toSet()
+          ..addAll(_cards.map((c) => c.cardNumber));
+        final myAccIds = _accounts.map((a) => a.id).toSet()
+          ..addAll(_cards.map((c) => c.accountId));
+
         final realHistory = list.map((item) {
           final m = item as Map<String, dynamic>;
           final typeStr = (m['type'] as String? ?? '').toUpperCase();
@@ -833,27 +855,66 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
               DateTime.now();
           final srcAccId = m['sourceAccountId']?.toString();
           final dstAccId = m['destinationAccountId']?.toString();
-          final isIncoming = opType == OperationType.internalTransfer &&
-              (srcAccId == null || srcAccId.isEmpty || srcAccId == 'null');
+          final srcAccNum = m['sourceAccountNumber']?.toString();
+          final dstAccNum = m['destinationAccountNumber']?.toString();
+          final srcBankName = m['sourceBankName']?.toString();
+          final dstBankName = m['destinationBankName']?.toString();
+
+          bool isIncoming = false;
+          if (opType == OperationType.internalTransfer) {
+            if (dstAccNum != null && myAccNumbers.contains(dstAccNum) && (srcAccNum == null || !myAccNumbers.contains(srcAccNum))) {
+              isIncoming = true;
+            } else if (dstAccId != null && myAccIds.contains(dstAccId) && (srcAccId == null || !myAccIds.contains(srcAccId))) {
+              isIncoming = true;
+            } else if (srcAccId == null || srcAccId.isEmpty || srcAccId == 'null') {
+              isIncoming = true;
+            } else if (dstBankName != null && _matchesTenant(slug, dstBankName) && (srcBankName == null || !_matchesTenant(slug, srcBankName))) {
+              isIncoming = true;
+            }
+          }
+
+          final String title;
+          final String description;
+
+          if (opType == OperationType.deposit) {
+            title = 'Depósito bancario';
+            description = (dstBankName != null && dstBankName.isNotEmpty)
+                ? 'Abono en $dstBankName${dstAccNum != null && dstAccNum.isNotEmpty ? " • Cta: $dstAccNum" : ""}'
+                : 'Abono recibido en cuenta';
+          } else if (opType == OperationType.withdrawal) {
+            title = 'Retiro de efectivo';
+            description = (srcBankName != null && srcBankName.isNotEmpty)
+                ? 'Retiro de $srcBankName${srcAccNum != null && srcAccNum.isNotEmpty ? " • Cta: $srcAccNum" : ""}'
+                : 'Retiro en cajero automático';
+          } else if (isIncoming) {
+            title = 'Transferencia recibida';
+            description = (srcBankName != null && srcBankName.isNotEmpty)
+                ? 'De: $srcBankName${srcAccNum != null && srcAccNum.isNotEmpty ? " • Cta: $srcAccNum" : ""}'
+                : (srcAccNum != null && srcAccNum.isNotEmpty ? 'De: Cta $srcAccNum' : 'Abono recibido en cuenta');
+          } else {
+            title = 'Transferencia realizada';
+            description = (dstBankName != null && dstBankName.isNotEmpty)
+                ? 'Para: $dstBankName${dstAccNum != null && dstAccNum.isNotEmpty ? " • Cta: $dstAccNum" : ""}'
+                : (dstAccNum != null && dstAccNum.isNotEmpty ? 'Para: Cta $dstAccNum' : 'Transferencia enviada');
+          }
 
           return OperationRecordEntity(
             id:
                 m['id'] as String? ??
                 'tx_${DateTime.now().millisecondsSinceEpoch}',
             type: opType,
-            title: opType == OperationType.deposit
-                ? 'Depósito bancario'
-                : (opType == OperationType.withdrawal
-                      ? 'Retiro de fondos'
-                      : (isIncoming ? 'Transferencia recibida' : 'Transferencia realizada')),
-            description: isIncoming
-                ? 'Abono recibido en cuenta'
-                : 'Operación registrada en ledger institucional',
+            title: title,
+            description: description,
             amount: amt,
             currency: curr,
             timestamp: date,
             originAccountId: srcAccId ?? '',
             destinationAccountId: dstAccId,
+            sourceBankName: srcBankName,
+            destinationBankName: dstBankName,
+            sourceAccountNumber: srcAccNum,
+            destinationAccountNumber: dstAccNum,
+            isIncoming: isIncoming,
           );
         }).toList();
 
@@ -908,18 +969,26 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         }
         _syncCardsWithAccounts();
 
+        final bank = _banks.where((b) => b.id == targetAccount?.tenantId || b.tenantId == targetAccount?.tenantId || b.slug.toLowerCase().contains(slug.toLowerCase())).firstOrNull;
+
         final record = OperationRecordEntity(
           id:
               data['transactionId'] as String? ??
               'dep_${DateTime.now().millisecondsSinceEpoch}',
           type: OperationType.deposit,
-          title: 'Depósito a cuenta',
-          description: concept ?? 'Abono de fondos exitoso',
+          title: 'Depósito bancario',
+          description: concept ?? (bank != null ? 'Abono en ${bank.name} • Cta: $accountNumber' : 'Abono recibido en cuenta'),
           amount: amount,
           currency:
               data['currency'] as String? ?? targetAccount?.currency ?? 'COP',
           timestamp: DateTime.now(),
           originAccountId: accountId,
+          destinationAccountId: accountId,
+          sourceBankName: 'PSE / Taquilla',
+          destinationBankName: bank?.name ?? 'BankOS',
+          destinationAccountNumber: accountNumber,
+          isIncoming: true,
+          concept: concept,
         );
         _history.insert(0, record);
         return record;
@@ -931,15 +1000,23 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       _accounts[idx] = acc.copyWith(balance: acc.balance + amount);
       _syncCardsWithAccounts();
 
+      final bank = _banks.where((b) => b.id == acc.tenantId || b.tenantId == acc.tenantId || b.slug.toLowerCase().contains(slug.toLowerCase())).firstOrNull;
+
       final record = OperationRecordEntity(
         id: 'dep_${DateTime.now().millisecondsSinceEpoch}',
         type: OperationType.deposit,
-        title: 'Depósito a cuenta',
-        description: concept ?? 'Abono de fondos exitoso',
+        title: 'Depósito bancario',
+        description: concept ?? (bank != null ? 'Abono en ${bank.name} • Cta: ${acc.accountNumber}' : 'Abono recibido en cuenta'),
         amount: amount,
         currency: acc.currency,
         timestamp: DateTime.now(),
         originAccountId: accountId,
+        destinationAccountId: accountId,
+        sourceBankName: 'PSE / Taquilla',
+        destinationBankName: bank?.name ?? 'BankOS',
+        destinationAccountNumber: acc.accountNumber,
+        isIncoming: true,
+        concept: concept,
       );
       _history.insert(0, record);
       return record;
@@ -1036,18 +1113,25 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         }
         _syncCardsWithAccounts();
 
+        final bank = _banks.where((b) => b.id == targetAccount?.tenantId || b.tenantId == targetAccount?.tenantId || b.slug.toLowerCase().contains(slug.toLowerCase())).firstOrNull;
+
         final record = OperationRecordEntity(
           id:
               data['transactionId'] as String? ??
               'wit_${DateTime.now().millisecondsSinceEpoch}',
           type: OperationType.withdrawal,
           title: 'Retiro de efectivo',
-          description: concept ?? 'Retiro de fondos exitoso',
+          description: concept ?? (bank != null ? 'Retiro de ${bank.name} • Cta: $accountNumber' : 'Retiro en cajero automático'),
           amount: amount,
           currency:
               data['currency'] as String? ?? targetAccount?.currency ?? 'COP',
           timestamp: DateTime.now(),
           originAccountId: accountId,
+          sourceBankName: bank?.name ?? 'BankOS',
+          destinationBankName: 'Cajero Automático',
+          sourceAccountNumber: accountNumber,
+          isIncoming: false,
+          concept: concept,
         );
         _history.insert(0, record);
         return record;
@@ -1066,15 +1150,22 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       _accounts[idx] = acc.copyWith(balance: acc.balance - amount);
       _syncCardsWithAccounts();
 
+      final bank = _banks.where((b) => b.id == acc.tenantId || b.tenantId == acc.tenantId || b.slug.toLowerCase().contains(slug.toLowerCase())).firstOrNull;
+
       final record = OperationRecordEntity(
         id: 'wit_${DateTime.now().millisecondsSinceEpoch}',
         type: OperationType.withdrawal,
         title: 'Retiro de efectivo',
-        description: concept ?? 'Retiro de fondos exitoso',
+        description: concept ?? (bank != null ? 'Retiro de ${bank.name} • Cta: ${acc.accountNumber}' : 'Retiro en cajero automático'),
         amount: amount,
         currency: acc.currency,
         timestamp: DateTime.now(),
         originAccountId: accountId,
+        sourceBankName: bank?.name ?? 'BankOS',
+        destinationBankName: 'Cajero Automático',
+        sourceAccountNumber: acc.accountNumber,
+        isIncoming: false,
+        concept: concept,
       );
       _history.insert(0, record);
       return record;
@@ -1219,18 +1310,27 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         }
         _syncCardsWithAccounts();
 
+        final srcBank = _banks.where((b) => b.id == originAcc?.tenantId || b.tenantId == originAcc?.tenantId || b.slug.toLowerCase().contains(slug.toLowerCase())).firstOrNull;
+        final dstBank = _banks.where((b) => b.id == destAcc?.tenantId || b.tenantId == destAcc?.tenantId).firstOrNull;
+
         final record = OperationRecordEntity(
           id:
               data['transactionId'] as String? ??
               'tx_${DateTime.now().millisecondsSinceEpoch}',
           type: OperationType.internalTransfer,
           title: 'Transferencia realizada',
-          description: concept ?? 'Transferencia enviada con éxito',
+          description: concept ?? (dstBank != null ? 'Para: ${dstBank.name} • Cta: $dstNumber' : 'Para: Cta $dstNumber'),
           amount: amount,
           currency: originAcc?.currency ?? 'COP',
           timestamp: DateTime.now(),
           originAccountId: originAccountId,
           destinationAccountId: destinationAccountId,
+          sourceBankName: srcBank?.name,
+          destinationBankName: dstBank?.name,
+          sourceAccountNumber: srcNumber,
+          destinationAccountNumber: dstNumber,
+          isIncoming: false,
+          concept: concept,
         );
         _history.insert(0, record);
         return record;
@@ -1259,16 +1359,25 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       _accounts[destIdx] = dst.copyWith(balance: dst.balance + creditedAmount);
       _syncCardsWithAccounts();
 
+      final srcBank = _banks.where((b) => b.id == src.tenantId || b.tenantId == src.tenantId).firstOrNull;
+      final dstBank = _banks.where((b) => b.id == dst.tenantId || b.tenantId == dst.tenantId).firstOrNull;
+
       final record = OperationRecordEntity(
         id: 'tx_${DateTime.now().millisecondsSinceEpoch}',
         type: OperationType.internalTransfer,
         title: 'Transferencia realizada',
-        description: concept ?? 'Transferencia a ${dst.maskedAccountNumber}',
+        description: concept ?? (dstBank != null ? 'Para: ${dstBank.name} • Cta: ${dst.accountNumber}' : 'Para: Cta ${dst.accountNumber}'),
         amount: amount,
         currency: src.currency,
         timestamp: DateTime.now(),
         originAccountId: originAccountId,
         destinationAccountId: destinationAccountId,
+        sourceBankName: srcBank?.name,
+        destinationBankName: dstBank?.name,
+        sourceAccountNumber: src.accountNumber,
+        destinationAccountNumber: dst.accountNumber,
+        isIncoming: false,
+        concept: concept,
       );
       _history.insert(0, record);
       return record;
@@ -1385,6 +1494,11 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       timestamp: DateTime.now(),
       originAccountId: orig.accountId,
       destinationAccountId: dest.accountId,
+      sourceBankName: orig.bankName,
+      destinationBankName: dest.bankName,
+      sourceAccountNumber: orig.cardNumber,
+      destinationAccountNumber: dest.cardNumber,
+      isIncoming: false,
     );
     _history.insert(0, record);
     return record;

@@ -7,9 +7,11 @@ import '../../../../core/localization/app_locale_provider.dart';
 import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../operations/domain/entities/registered_bank_entity.dart';
+import '../../../operations/domain/entities/operation_record_entity.dart';
 import '../../../operations/presentation/providers/operations_providers.dart';
 import '../../../operations/presentation/screens/history_screen.dart';
 import '../../../operations/presentation/screens/profile_screen.dart';
+import '../../../operations/presentation/widgets/transaction_detail_modal.dart';
 
 /// PERFIL CLIENTE (BankOs):
 /// - Consultar y operar sobre las cuentas de las cuales es titular.
@@ -1027,86 +1029,95 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final typeStr = item.type.toString();
     final isDeposit = typeStr.contains('deposit');
     final isExchange = typeStr.contains('currencyExchange');
+    final isIncoming = item is OperationRecordEntity && item.isIncoming;
+    final isCredit = isDeposit || isIncoming;
 
-    final Color iconBg = isDeposit
+    final Color iconBg = isCredit
         ? const Color(0xFFDCFCE7)
         : (isExchange ? const Color(0xFFFAF5FF) : const Color(0xFFFEE2E2));
-    final Color iconColor = isDeposit
+    final Color iconColor = isCredit
         ? const Color(0xFF16A34A)
         : (isExchange ? const Color(0xFF7C3AED) : const Color(0xFFDC2626));
-    final IconData icon = isDeposit
+    final IconData icon = isCredit
         ? Icons.arrow_downward_rounded
         : (isExchange
             ? Icons.currency_exchange_rounded
             : Icons.arrow_upward_rounded);
 
-    final String amountPrefix = isDeposit ? '+ ' : '- ';
     final Color amountColor =
-        isDeposit ? const Color(0xFF16A34A) : const Color(0xFF0F172A);
+        isCredit ? const Color(0xFF16A34A) : const Color(0xFF0F172A);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: iconBg,
-              shape: BoxShape.circle,
+    return InkWell(
+      onTap: () {
+        if (item is OperationRecordEntity) {
+          TransactionDetailModal.show(context, item, lang);
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: iconBg,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 18),
             ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    style: const TextStyle(
+                      color: Color(0xFF0F172A),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.description,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 11,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  item.title,
-                  style: const TextStyle(
-                    color: Color(0xFF0F172A),
+                  item.formattedAmount,
+                  style: TextStyle(
+                    color: amountColor,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  item.description,
+                  lang == AppLanguage.es ? 'Hoy, reciente' : 'Today, recent',
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 11,
+                    color: Color(0xFF94A3B8),
+                    fontSize: 10,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '$amountPrefix${item.formattedAmount}',
-                style: TextStyle(
-                  color: amountColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                lang == AppLanguage.es ? 'Hoy, reciente' : 'Today, recent',
-                style: const TextStyle(
-                  color: Color(0xFF94A3B8),
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
