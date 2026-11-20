@@ -205,7 +205,9 @@ class Tr {
   static String destinationAccountLabel(AppLanguage lang) =>
       _es(lang) ? 'Cuenta destino:' : 'Destination account:';
   static String amountDebitedLabel(AppLanguage lang) =>
-      _es(lang) ? 'Monto debitado:' : 'Amount debited:';
+      _es(lang) ? 'Monto a transferir:' : 'Transfer amount:';
+  static String totalDebitedLabel(AppLanguage lang) =>
+      _es(lang) ? 'Total a debitar:' : 'Total to debit:';
   static String transferFeeLabelSummary(AppLanguage lang) =>
       _es(lang) ? 'Comisión de transferencia:' : 'Transfer fee:';
   static String noFee(AppLanguage lang) => _es(lang) ? 'Sin costo' : 'No fee';

@@ -12,6 +12,8 @@ class RegisteredBankEntity {
   final String primaryColorHex;
   final String accentColorHex;
   final String logoKey;
+  final String feeType;
+  final double feeValue;
 
   const RegisteredBankEntity({
     required this.id,
@@ -25,6 +27,8 @@ class RegisteredBankEntity {
     this.primaryColorHex = '#0A2540',
     this.accentColorHex = '#0052FF',
     this.logoKey = 'bankos',
+    this.feeType = 'FIXED',
+    this.feeValue = 0.0,
   });
 
   String get subdomain => assignedSubdomain ?? '$code.bankos.io';
@@ -37,6 +41,8 @@ class RegisteredBankEntity {
       code: 'banco-lombia',
       tenantId: 'tenant_banco_lombia',
       currency: 'COP',
+      feeType: 'FIXED',
+      feeValue: 2500.0,
       primaryColorHex: '#000000',
       accentColorHex: '#FDDA24',
       logoKey: 'bancolombia',
@@ -47,6 +53,8 @@ class RegisteredBankEntity {
       code: 'banco-bogota',
       tenantId: 'tenant_banco_bogota',
       currency: 'COP',
+      feeType: 'FIXED',
+      feeValue: 2000.0,
       primaryColorHex: '#002D72',
       accentColorHex: '#004BB1',
       logoKey: 'banco-bogota',
@@ -57,6 +65,8 @@ class RegisteredBankEntity {
       code: 'banco-santander',
       tenantId: 'tenant_banco_santander',
       currency: 'USD',
+      feeType: 'PERCENTAGE',
+      feeValue: 2.0,
       primaryColorHex: '#EC0000',
       accentColorHex: '#CC0000',
       logoKey: 'banco-santander',
@@ -67,6 +77,8 @@ class RegisteredBankEntity {
       code: 'banco-nu',
       tenantId: 'tenant_banco_nu',
       currency: 'COP',
+      feeType: 'FIXED',
+      feeValue: 0.0,
       primaryColorHex: '#820AD1',
       accentColorHex: '#9B3FE6',
       logoKey: 'banco-nu',
@@ -77,6 +89,8 @@ class RegisteredBankEntity {
       code: 'banco-occidente',
       tenantId: 'tenant_banco_occidente',
       currency: 'COP',
+      feeType: 'FIXED',
+      feeValue: 0.0,
       primaryColorHex: '#0A2540',
       accentColorHex: '#0052FF',
       logoKey: 'bankos',
@@ -88,6 +102,8 @@ class RegisteredBankEntity {
       tenantId: 'tenant_bankos_global',
       currency: 'USD',
       isGlobal: true,
+      feeType: 'FIXED',
+      feeValue: 0.0,
       primaryColorHex: '#031633',
       accentColorHex: '#6DA5FA',
       logoKey: 'bankos',
@@ -128,6 +144,8 @@ class RegisteredBankEntity {
     String? primaryColorHex,
     String? accentColorHex,
     String? logoKey,
+    String? feeType,
+    double? feeValue,
   }) {
     return RegisteredBankEntity(
       id: id ?? this.id,
@@ -141,6 +159,8 @@ class RegisteredBankEntity {
       primaryColorHex: primaryColorHex ?? this.primaryColorHex,
       accentColorHex: accentColorHex ?? this.accentColorHex,
       logoKey: logoKey ?? this.logoKey,
+      feeType: feeType ?? this.feeType,
+      feeValue: feeValue ?? this.feeValue,
     );
   }
 

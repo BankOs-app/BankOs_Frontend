@@ -12,6 +12,7 @@ import '../../../operations/presentation/providers/operations_providers.dart';
 import '../../../operations/presentation/screens/history_screen.dart';
 import '../../../operations/presentation/screens/profile_screen.dart';
 import '../../../operations/presentation/widgets/transaction_detail_modal.dart';
+import '../widgets/notifications_modal.dart';
 
 /// PERFIL CLIENTE (BankOs):
 /// - Consultar y operar sobre las cuentas de las cuales es titular.
@@ -28,6 +29,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentNavIndex = 0;
   bool _isBalanceVisible = true;
+  bool _hasUnreadNotifications = true;
   final PageController _cardPageController =
       PageController(viewportFraction: 1.0);
 
@@ -273,30 +275,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    lang == AppLanguage.es
-                                        ? 'No tienes notificaciones pendientes.'
-                                        : 'You have no pending notifications.',
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              setState(() {
+                                _hasUnreadNotifications = false;
+                              });
+                              NotificationsModal.show(
+                                context: context,
+                                lang: lang,
+                                history: operationsState.history,
+                                currentBank: currentBank,
                               );
                             },
                           ),
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFEF4444),
-                                shape: BoxShape.circle,
+                          if (_hasUnreadNotifications)
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEF4444),
+                                  shape: BoxShape.circle,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     ],

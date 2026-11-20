@@ -722,6 +722,8 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
               tenantId: m['schemaName'] as String? ?? slug,
               currency: m['primaryCurrency'] as String? ?? 'COP',
               isGlobal: slug.contains('global'),
+              feeType: m['feeType'] as String? ?? 'FIXED',
+              feeValue: double.tryParse(m['feeValue']?.toString() ?? '0') ?? 0.0,
               primaryColorHex:
                   m['primaryColor'] as String? ??
                   (slug.contains('lombia')
@@ -929,9 +931,15 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
               : (typeStr == 'WITHDRAWAL'
                     ? OperationType.withdrawal
                     : OperationType.internalTransfer);
-          final amt =
+          final rawOrigAmt =
               double.tryParse(m['originalAmount']?.toString() ?? '0') ?? 0.0;
-          final curr = m['originalCurrency'] as String? ?? 'COP';
+          final origCurr = m['originalCurrency'] as String? ?? 'COP';
+          final convertedAmt =
+              double.tryParse(m['convertedAmount']?.toString() ?? '') ??
+              double.tryParse(m['targetAmount']?.toString() ?? '');
+          final dstCurr = m['destinationCurrency'] as String?;
+          final fee =
+              double.tryParse(m['feeAmount']?.toString() ?? '0') ?? 0.0;
           final date =
               DateTime.tryParse(m['createdAt']?.toString() ?? '') ??
               DateTime.now();
@@ -953,6 +961,22 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
             } else if (dstBankName != null && _matchesTenant(slug, dstBankName) && (srcBankName == null || !_matchesTenant(slug, srcBankName))) {
               isIncoming = true;
             }
+          }
+
+          // Determinación precisa del monto y moneda de la operación
+          final double amt;
+          final String curr;
+          if (isIncoming) {
+            amt = (convertedAmt != null && convertedAmt > 0) ? convertedAmt : rawOrigAmt;
+            curr = dstCurr ?? origCurr;
+          } else {
+            // Si una transacción previa guardó originalAmount con el fee sumado por error:
+            if (fee > 0 && convertedAmt != null && (rawOrigAmt - convertedAmt).abs() == fee) {
+              amt = convertedAmt;
+            } else {
+              amt = rawOrigAmt;
+            }
+            curr = origCurr;
           }
 
           final String title;
@@ -989,6 +1013,9 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
             description: description,
             amount: amt,
             currency: curr,
+            convertedAmount: convertedAmt,
+            destinationCurrency: dstCurr,
+            fee: isIncoming ? 0.0 : fee,
             timestamp: date,
             originAccountId: srcAccId ?? '',
             destinationAccountId: dstAccId,
@@ -1398,6 +1425,11 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         final srcBank = _banks.where((b) => b.id == originAcc?.tenantId || b.tenantId == originAcc?.tenantId || b.slug.toLowerCase().contains(slug.toLowerCase())).firstOrNull;
         final dstBank = _banks.where((b) => b.id == destAcc?.tenantId || b.tenantId == destAcc?.tenantId).firstOrNull;
 
+        final fee = double.tryParse(data['feeAmount']?.toString() ?? '0') ?? 0.0;
+        final convertedAmount = double.tryParse(data['targetAmount']?.toString() ?? '') ??
+            double.tryParse(data['destinationAmount']?.toString() ?? '');
+        final dstCurrency = data['destinationCurrency']?.toString();
+
         final record = OperationRecordEntity(
           id:
               data['transactionId'] as String? ??
@@ -1407,6 +1439,9 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
           description: concept ?? (dstBank != null ? 'Para: ${dstBank.name} • Cta: $dstNumber' : 'Para: Cta $dstNumber'),
           amount: amount,
           currency: originAcc?.currency ?? 'COP',
+          convertedAmount: convertedAmount,
+          destinationCurrency: dstCurrency,
+          fee: fee,
           timestamp: DateTime.now(),
           originAccountId: originAccountId,
           destinationAccountId: destinationAccountId,

@@ -206,6 +206,13 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (modalContext) {
+        final isVariableFee = origBank.feeType.toUpperCase() == 'VARIABLE' ||
+            origBank.feeType.toUpperCase() == 'PERCENTAGE';
+        final calculatedFee = isVariableFee
+            ? (amount * (origBank.feeValue / 100.0))
+            : origBank.feeValue;
+        final totalDebitAmount = amount + calculatedFee;
+
         return Align(
           alignment: Alignment.bottomCenter,
           child: ConstrainedBox(
@@ -367,9 +374,22 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   const SizedBox(height: 8),
                   _buildPreviewRow(
                     label: Tr.transferFeeLabelSummary(lang),
-                    value: '${Tr.noFee(lang)} (\$0.00)',
-                    valueColor: const Color(0xFF16A34A),
+                    value: calculatedFee > 0
+                        ? '${origCard.currency} \$${calculatedFee.toStringAsFixed(2)}'
+                        : '${Tr.noFee(lang)} (\$0.00)',
+                    valueColor: calculatedFee > 0
+                        ? const Color(0xFFD97706)
+                        : const Color(0xFF16A34A),
                   ),
+                  if (calculatedFee > 0) ...[
+                    const SizedBox(height: 8),
+                    _buildPreviewRow(
+                      label: Tr.totalDebitedLabel(lang),
+                      value:
+                          '${origCard.currency} \$${totalDebitAmount.toStringAsFixed(2)}',
+                      valueColor: AppColors.primaryNavy,
+                    ),
+                  ],
 
                   const SizedBox(height: 24),
 

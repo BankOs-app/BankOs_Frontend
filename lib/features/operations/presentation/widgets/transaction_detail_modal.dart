@@ -212,6 +212,28 @@ class TransactionDetailModal extends StatelessWidget {
                     value: destAccount,
                     icon: Icons.numbers_rounded,
                   ),
+                  if (record.fee > 0 && !isCredit) ...[
+                    const Divider(height: 18, color: Color(0xFFE2E8F0)),
+                    _buildRow(
+                      label: lang == AppLanguage.es ? 'Monto Base' : 'Base Amount',
+                      value: '${record.currency} \$${record.amount.toStringAsFixed(2)}',
+                      icon: Icons.payments_outlined,
+                    ),
+                    const Divider(height: 18, color: Color(0xFFE2E8F0)),
+                    _buildRow(
+                      label: lang == AppLanguage.es ? 'Comisión Bancaria' : 'Bank Fee',
+                      value: '${record.currency} \$${record.fee.toStringAsFixed(2)}',
+                      icon: Icons.receipt_long_rounded,
+                      valueColor: const Color(0xFFD97706),
+                    ),
+                    const Divider(height: 18, color: Color(0xFFE2E8F0)),
+                    _buildRow(
+                      label: lang == AppLanguage.es ? 'Total Debitado' : 'Total Debited',
+                      value: '${record.currency} \$${(record.amount + record.fee).toStringAsFixed(2)}',
+                      icon: Icons.account_balance_wallet_rounded,
+                      valueColor: AppColors.primaryNavy,
+                    ),
+                  ],
                   const Divider(height: 18, color: Color(0xFFE2E8F0)),
                   _buildRow(
                     label: lang == AppLanguage.es ? 'Fecha y Hora' : 'Date & Time',
@@ -291,6 +313,7 @@ class TransactionDetailModal extends StatelessWidget {
     required String label,
     required String value,
     required IconData icon,
+    Color? valueColor,
     Widget? trailing,
   }) {
     return Row(
@@ -309,8 +332,8 @@ class TransactionDetailModal extends StatelessWidget {
         Flexible(
           child: Text(
             value,
-            style: const TextStyle(
-              color: Color(0xFF0F172A),
+            style: TextStyle(
+              color: valueColor ?? const Color(0xFF0F172A),
               fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
