@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/localization/app_locale_provider.dart';
 import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../operations/presentation/providers/operations_providers.dart';
 import '../providers/auth_providers.dart';
@@ -26,12 +27,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _passwordConfirmController = TextEditingController();
+  final TextEditingController _passwordConfirmController =
+      TextEditingController();
   final TextEditingController _pinController = TextEditingController();
   final TextEditingController _pinConfirmController = TextEditingController();
 
   String _documentType = 'Cédula de Ciudadanía (CC)';
   bool _isLoading = false;
+
+  String _tr(String spanish, String english) =>
+      LocaleNotifier.currentLanguage == AppLanguage.es ? spanish : english;
 
   @override
   void dispose() {
@@ -51,8 +56,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-            isError ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+        backgroundColor: isError
+            ? const Color(0xFFEF4444)
+            : const Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -64,11 +70,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       case 0:
         final name = _fullNameController.text.trim();
         if (name.isEmpty) {
-          _showSnackBar('Por favor, ingresa tu nombre completo.');
+          _showSnackBar(
+            _tr(
+              'Por favor, ingresa tu nombre completo.',
+              'Enter your full name.',
+            ),
+          );
           return false;
         }
         if (name.length < 3) {
-          _showSnackBar('Ingresa un nombre válido (mínimo 3 caracteres).');
+          _showSnackBar(
+            _tr(
+              'Ingresa un nombre válido (mínimo 3 caracteres).',
+              'Enter a valid name (at least 3 characters).',
+            ),
+          );
           return false;
         }
         return true;
@@ -76,11 +92,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       case 1:
         final doc = _documentController.text.trim();
         if (doc.isEmpty) {
-          _showSnackBar('Por favor, ingresa tu número de documento.');
+          _showSnackBar(
+            _tr(
+              'Por favor, ingresa tu número de documento.',
+              'Enter your identification number.',
+            ),
+          );
           return false;
         }
         if (doc.length < 4) {
-          _showSnackBar('El número de documento debe tener al menos 4 dígitos.');
+          _showSnackBar(
+            _tr(
+              'El número de documento debe tener al menos 4 dígitos.',
+              'The identification number must contain at least 4 digits.',
+            ),
+          );
           return false;
         }
         return true;
@@ -88,12 +114,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       case 2:
         final email = _emailController.text.trim();
         if (email.isEmpty) {
-          _showSnackBar('Por favor, ingresa tu correo electrónico.');
+          _showSnackBar(
+            _tr(
+              'Por favor, ingresa tu correo electrónico.',
+              'Enter your email address.',
+            ),
+          );
           return false;
         }
         final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
         if (!emailRegex.hasMatch(email)) {
-          _showSnackBar('Ingresa un correo electrónico válido (ej. usuario@correo.com).');
+          _showSnackBar(
+            _tr(
+              'Ingresa un correo electrónico válido (ej. usuario@correo.com).',
+              'Enter a valid email address (e.g. user@example.com).',
+            ),
+          );
           return false;
         }
         return true;
@@ -101,11 +137,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       case 3:
         final phone = _phoneController.text.trim();
         if (phone.isEmpty) {
-          _showSnackBar('Por favor, ingresa tu número de teléfono.');
+          _showSnackBar(
+            _tr(
+              'Por favor, ingresa tu número de teléfono.',
+              'Enter your phone number.',
+            ),
+          );
           return false;
         }
         if (phone.length < 7) {
-          _showSnackBar('Ingresa un número de celular o teléfono válido.');
+          _showSnackBar(
+            _tr(
+              'Ingresa un número de celular o teléfono válido.',
+              'Enter a valid mobile or phone number.',
+            ),
+          );
           return false;
         }
         return true;
@@ -114,15 +160,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         final pass = _passwordController.text;
         final passConfirm = _passwordConfirmController.text;
         if (pass.isEmpty) {
-          _showSnackBar('Por favor, ingresa una contraseña de seguridad.');
+          _showSnackBar(
+            _tr(
+              'Por favor, ingresa una contraseña de seguridad.',
+              'Enter a secure password.',
+            ),
+          );
           return false;
         }
         if (pass.length < 6) {
-          _showSnackBar('La contraseña debe tener al menos 6 caracteres.');
+          _showSnackBar(
+            _tr(
+              'La contraseña debe tener al menos 6 caracteres.',
+              'The password must contain at least 6 characters.',
+            ),
+          );
           return false;
         }
         if (pass != passConfirm) {
-          _showSnackBar('Las contraseñas no coinciden. Por favor verifica.');
+          _showSnackBar(
+            _tr(
+              'Las contraseñas no coinciden. Por favor verifica.',
+              'The passwords do not match. Please check them.',
+            ),
+          );
           return false;
         }
         return true;
@@ -131,15 +192,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         final pin = _pinController.text.trim();
         final pinConfirm = _pinConfirmController.text.trim();
         if (pin.isEmpty) {
-          _showSnackBar('Por favor, define tu PIN transaccional de 4 dígitos.');
+          _showSnackBar(
+            _tr(
+              'Por favor, define tu PIN transaccional de 4 dígitos.',
+              'Set your 4-digit transaction PIN.',
+            ),
+          );
           return false;
         }
         if (pin.length != 4 || !RegExp(r'^\d{4}$').hasMatch(pin)) {
-          _showSnackBar('El PIN de seguridad debe contener exactamente 4 dígitos numéricos.');
+          _showSnackBar(
+            _tr(
+              'El PIN de seguridad debe contener exactamente 4 dígitos numéricos.',
+              'The security PIN must contain exactly 4 digits.',
+            ),
+          );
           return false;
         }
         if (pin != pinConfirm) {
-          _showSnackBar('Los PINes ingresados no coinciden. Por favor verifica.');
+          _showSnackBar(
+            _tr(
+              'Los PINes ingresados no coinciden. Por favor verifica.',
+              'The PINs do not match. Please check them.',
+            ),
+          );
           return false;
         }
         return true;
@@ -193,7 +269,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _isLoading = true;
     });
 
-    final success = await ref.read(authNotifierProvider.notifier).register(
+    final success = await ref
+        .read(authNotifierProvider.notifier)
+        .register(
           fullName: fullName,
           documentNumber: documentNumber,
           email: email,
@@ -218,12 +296,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             title: const Row(
               children: [
-                Icon(Icons.check_circle_rounded,
-                    color: Color(0xFF10B981), size: 28),
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF10B981),
+                  size: 28,
+                ),
                 SizedBox(width: 10),
                 Text(
-                  '¡Registro Exitoso!',
-                  style: TextStyle(
+                  _tr('¡Registro exitoso!', 'Registration successful'),
+                  style: const TextStyle(
                     color: AppColors.primaryNavy,
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
@@ -235,16 +316,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Tu cuenta bancaria en BankOS ha sido creada exitosamente. Ya puedes acceder a todas las entidades del sistema:',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                Text(
+                  _tr(
+                    'Tu cuenta bancaria en BankOS se creó correctamente. Ya puedes acceder a las entidades disponibles:',
+                    'Your BankOS account was created successfully. You can now access the available institutions:',
+                  ),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 14),
-                _buildSummaryRow('Nombre:', fullName),
-                _buildSummaryRow('Documento:', '$documentNumber ($_documentType)'),
-                _buildSummaryRow('Correo:', email),
-                _buildSummaryRow('Teléfono:', phone),
-                _buildSummaryRow('PIN Operaciones:', '•••• (Configurado)'),
+                _buildSummaryRow(_tr('Nombre:', 'Name:'), fullName),
+                _buildSummaryRow(
+                  _tr('Documento:', 'ID number:'),
+                  '$documentNumber ($_documentType)',
+                ),
+                _buildSummaryRow(_tr('Correo:', 'Email:'), email),
+                _buildSummaryRow(_tr('Teléfono:', 'Phone:'), phone),
+                _buildSummaryRow(
+                  _tr('PIN de operaciones:', 'Transaction PIN:'),
+                  _tr('•••• (Configurado)', '•••• (Set)'),
+                ),
               ],
             ),
             actions: [
@@ -257,13 +350,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   backgroundColor: AppColors.primaryNavy,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
-                  'Entrar a BankOS',
+                child: Text(
+                  _tr('Entrar a BankOS', 'Continue to BankOS'),
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -272,7 +368,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
       } else {
         final error = ref.read(authNotifierProvider).errorMessage;
-        _showSnackBar(error ?? 'Error al procesar el registro.');
+        _showSnackBar(
+          error ??
+              _tr(
+                'No fue posible completar el registro. Revisa los datos e inténtalo de nuevo.',
+                'Could not complete registration. Check your details and try again.',
+              ),
+        );
       }
     }
   }
@@ -311,9 +413,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(localeNotifierProvider);
     final operationsState = ref.watch(operationsNotifierProvider);
     final currentBank = operationsState.currentBank;
-    final slug = currentBank.code.toLowerCase();
+    final slug = currentBank.slug;
 
     // Colores según la identidad del banco activo
     final Color buttonBgColor;
@@ -364,8 +467,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
           onPressed: _prevStep,
         ),
-        title: const Text(
-          'Registro de Cliente',
+        title: Text(
+          _tr('Registro de cliente', 'Customer registration'),
           style: TextStyle(
             color: AppColors.primaryNavy,
             fontSize: 17,
@@ -383,9 +486,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
             child: Text(
-              'Paso ${_currentStep + 1} de $_totalSteps',
+              _tr(
+                'Paso ${_currentStep + 1} de $_totalSteps',
+                'Step ${_currentStep + 1} of $_totalSteps',
+              ),
               style: TextStyle(
-                color: brandAccent == Colors.black ? const Color(0xFFFDDA24) : brandAccent,
+                color: brandAccent == Colors.black
+                    ? const Color(0xFFFDDA24)
+                    : brandAccent,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -398,7 +506,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           children: [
             // Indicador de pasos exclusivo con números (sin barra duplicada, Foto 4)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 12.0,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(_totalSteps, (index) {
@@ -407,13 +518,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   final stepColor = isDone
                       ? const Color(0xFF10B981)
                       : isCurrent
-                          ? buttonBgColor
-                          : const Color(0xFFE2E8F0);
+                      ? buttonBgColor
+                      : const Color(0xFFE2E8F0);
                   final textColor = isDone
                       ? Colors.white
                       : isCurrent
-                          ? buttonTextColor
-                          : const Color(0xFF94A3B8);
+                      ? buttonTextColor
+                      : const Color(0xFF94A3B8);
 
                   return Row(
                     children: [
@@ -425,14 +536,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: isCurrent
-                                ? (brandAccent == Colors.black ? const Color(0xFFFDDA24) : brandAccent)
+                                ? (brandAccent == Colors.black
+                                      ? const Color(0xFFFDDA24)
+                                      : brandAccent)
                                 : const Color(0xFFCBD5E1),
                             width: 1.5,
                           ),
                         ),
                         child: Center(
                           child: isDone
-                              ? const Icon(Icons.check, size: 16, color: Colors.white)
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Colors.white,
+                                )
                               : Text(
                                   '${index + 1}',
                                   style: TextStyle(
@@ -445,7 +562,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       if (index < _totalSteps - 1)
                         Container(
-                          width: (MediaQuery.of(context).size.width - 48 - (30 * _totalSteps)) / (_totalSteps - 1),
+                          width:
+                              (MediaQuery.of(context).size.width -
+                                  48 -
+                                  (30 * _totalSteps)) /
+                              (_totalSteps - 1),
                           height: 2.5,
                           color: isDone
                               ? const Color(0xFF10B981)
@@ -477,7 +598,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
             // Controles inferiores: Atrás y Continuar
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 16.0,
+              ),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 border: Border(
@@ -503,8 +627,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
-                            child: const Text(
-                              'Atrás',
+                            child: Text(
+                              _tr('Atrás', 'Back'),
                               style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
@@ -539,8 +663,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                   children: [
                                     Text(
                                       _currentStep == _totalSteps - 1
-                                          ? 'Crear mi cuenta'
-                                          : 'Continuar',
+                                          ? _tr(
+                                              'Crear mi cuenta',
+                                              'Create my account',
+                                            )
+                                          : _tr('Continuar', 'Continue'),
                                       style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
@@ -567,8 +694,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          '¿Ya tienes una cuenta? ',
+                        Text(
+                          _tr(
+                            '¿Ya tienes una cuenta? ',
+                            'Already have an account? ',
+                          ),
                           style: TextStyle(
                             color: Color(0xFF94A3B8),
                             fontSize: 13,
@@ -577,9 +707,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         GestureDetector(
                           onTap: () => context.go('/login'),
                           child: Text(
-                            'Iniciar sesión',
+                            _tr('Iniciar sesión', 'Sign in'),
                             style: TextStyle(
-                              color: brandAccent == Colors.black ? const Color(0xFFFDDA24) : brandAccent,
+                              color: brandAccent == Colors.black
+                                  ? const Color(0xFFFDDA24)
+                                  : brandAccent,
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -600,16 +732,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   // PASO 1: Nombre Completo
   Widget _buildStep1Name() {
     final currentBank = ref.watch(operationsNotifierProvider).currentBank;
-    final slug = currentBank.code.toLowerCase();
+    final slug = currentBank.slug;
     final brandAccent = slug.contains('lombia')
         ? const Color(0xFFFDDA24)
         : (slug.contains('santander')
-            ? const Color(0xFFEC0000)
-            : (slug.contains('nu')
-                ? const Color(0xFF820AD1)
-                : (slug.contains('bogota')
-                    ? const Color(0xFF004BB1)
-                    : currentBank.accentColor)));
+              ? const Color(0xFFEC0000)
+              : (slug.contains('nu')
+                    ? const Color(0xFF820AD1)
+                    : (slug.contains('bogota')
+                          ? const Color(0xFF004BB1)
+                          : currentBank.accentColor)));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
@@ -622,20 +754,34 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: (brandAccent == Colors.black ? const Color(0xFF0F172A) : brandAccent).withValues(alpha: 0.08),
+                    color:
+                        (brandAccent == Colors.black
+                                ? const Color(0xFF0F172A)
+                                : brandAccent)
+                            .withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: (brandAccent == Colors.black ? const Color(0xFFFDDA24) : brandAccent).withValues(alpha: 0.3),
+                      color:
+                          (brandAccent == Colors.black
+                                  ? const Color(0xFFFDDA24)
+                                  : brandAccent)
+                              .withValues(alpha: 0.3),
                       width: 1.5,
                     ),
                   ),
-                  child: BankBrandLogo(bank: currentBank, size: 48, showName: false),
+                  child: BankBrandLogo(
+                    bank: currentBank,
+                    size: 48,
+                    showName: false,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   currentBank.name,
                   style: TextStyle(
-                    color: slug.contains('lombia') ? const Color(0xFF0F172A) : brandAccent,
+                    color: slug.contains('lombia')
+                        ? const Color(0xFF0F172A)
+                        : brandAccent,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     letterSpacing: -0.3,
@@ -647,14 +793,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 20),
           _buildStepHeader(
             icon: Icons.person_rounded,
-            title: '¿Cómo te llamas?',
-            subtitle: 'Ingresa tu nombre y apellidos tal como figuran en tu documento oficial de identidad.',
+            title: _tr('¿Cómo te llamas?', 'What is your name?'),
+            subtitle: _tr(
+              'Ingresa tu nombre y apellidos tal como figuran en tu documento oficial de identidad.',
+              'Enter your first and last name as shown on your official identification.',
+            ),
           ),
           const SizedBox(height: 24),
-          _buildFieldLabel('Nombre completo:'),
+          _buildFieldLabel(_tr('Nombre completo:', 'Full name:')),
           AuthTextField(
             controller: _fullNameController,
-            hintText: 'Carlos Gómez',
+            hintText: _tr('Carlos Gómez', 'Alex Morgan'),
             keyboardType: TextInputType.name,
             prefixIcon: Icons.person_outline_rounded,
             isDark: false,
@@ -662,8 +811,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 20),
           _buildFeatureNotice(
             icon: Icons.verified_user_outlined,
-            title: 'Verificación Bancaria',
-            description: 'Tu nombre completo será asociado a tus cuentas bancarias y certificados de titularidad.',
+            title: _tr('Verificación bancaria', 'Bank verification'),
+            description: _tr(
+              'Tu nombre completo se asociará a tus cuentas bancarias y certificados de titularidad.',
+              'Your full name will be linked to your bank accounts and account ownership records.',
+            ),
           ),
         ],
       ),
@@ -679,11 +831,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         children: [
           _buildStepHeader(
             icon: Icons.badge_rounded,
-            title: '¿Cuál es tu identificación?',
-            subtitle: 'Selecciona tu tipo de documento e ingresa el número de identificación para el registro KYC.',
+            title: _tr(
+              '¿Cuál es tu identificación?',
+              'What is your identification?',
+            ),
+            subtitle: _tr(
+              'Selecciona tu tipo de documento e ingresa el número de identificación para el registro KYC.',
+              'Select an identification type and enter its number for identity verification.',
+            ),
           ),
           const SizedBox(height: 24),
-          _buildFieldLabel('Tipo de documento:'),
+          _buildFieldLabel(_tr('Tipo de documento:', 'Identification type:')),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
             decoration: BoxDecoration(
@@ -697,12 +855,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 isExpanded: true,
                 dropdownColor: Colors.white,
                 style: const TextStyle(color: Colors.white, fontSize: 14),
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryNavy),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.primaryNavy,
+                ),
                 items: const [
-                  DropdownMenuItem(value: 'Cédula de Ciudadanía (CC)', child: Text('Cédula de Ciudadanía (CC)')),
-                  DropdownMenuItem(value: 'Cédula de Extranjería (CE)', child: Text('Cédula de Extranjería (CE)')),
-                  DropdownMenuItem(value: 'Pasaporte (PAS)', child: Text('Pasaporte (PAS)')),
-                  DropdownMenuItem(value: 'NIT / Empresa', child: Text('NIT Empresarial')),
+                  DropdownMenuItem(
+                    value: 'Cédula de Ciudadanía (CC)',
+                    child: Text(
+                      _tr('Cédula de Ciudadanía (CC)', 'National ID (CC)'),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Cédula de Extranjería (CE)',
+                    child: Text(
+                      _tr('Cédula de Extranjería (CE)', 'Foreigner ID (CE)'),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Pasaporte (PAS)',
+                    child: Text(_tr('Pasaporte (PAS)', 'Passport (PAS)')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'NIT / Empresa',
+                    child: Text(_tr('NIT Empresarial', 'Business tax ID')),
+                  ),
                 ],
                 onChanged: (val) {
                   if (val != null) setState(() => _documentType = val);
@@ -711,10 +888,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          _buildFieldLabel('Número de documento:'),
+          _buildFieldLabel(
+            _tr('Número de documento:', 'Identification number:'),
+          ),
           AuthTextField(
             controller: _documentController,
-            hintText: 'Número de documento',
+            hintText: _tr('Número de documento', 'Identification number'),
             keyboardType: TextInputType.number,
             prefixIcon: Icons.numbers_rounded,
             isDark: false,
@@ -722,8 +901,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 20),
           _buildFeatureNotice(
             icon: Icons.security_rounded,
-            title: 'Protección de Datos KYC',
-            description: 'Tus datos de identidad están protegidos por cifrado bancario de extremo a extremo.',
+            title: _tr('Protección de datos', 'Data protection'),
+            description: _tr(
+              'Tus datos de identidad están protegidos con cifrado bancario.',
+              'Your identity data is protected with banking-grade encryption.',
+            ),
           ),
         ],
       ),
@@ -739,14 +921,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         children: [
           _buildStepHeader(
             icon: Icons.alternate_email_rounded,
-            title: '¿Cuál es tu correo electrónico?',
-            subtitle: 'Aquí recibirás tus comprobantes de transferencias, notificaciones y extractos bancarios.',
+            title: _tr(
+              '¿Cuál es tu correo electrónico?',
+              'What is your email address?',
+            ),
+            subtitle: _tr(
+              'Aquí recibirás comprobantes de transferencias, notificaciones y extractos bancarios.',
+              'We will send transfer receipts, notifications, and bank statements to this address.',
+            ),
           ),
           const SizedBox(height: 24),
-          _buildFieldLabel('Correo electrónico:'),
+          _buildFieldLabel(_tr('Correo electrónico:', 'Email address:')),
           AuthTextField(
             controller: _emailController,
-            hintText: 'correo@ejemplo.com',
+            hintText: 'name@example.com',
             keyboardType: TextInputType.emailAddress,
             prefixIcon: Icons.mail_outline_rounded,
             isDark: false,
@@ -754,8 +942,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 20),
           _buildFeatureNotice(
             icon: Icons.mark_email_read_outlined,
-            title: 'Canal Oficial',
-            description: 'Nunca compartiremos tu correo con terceros ni te pediremos claves por este medio.',
+            title: _tr('Canal oficial', 'Official channel'),
+            description: _tr(
+              'No compartiremos tu correo con terceros ni te pediremos tus claves por este medio.',
+              'We will not share your email or ask for your passwords through this channel.',
+            ),
           ),
         ],
       ),
@@ -771,11 +962,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         children: [
           _buildStepHeader(
             icon: Icons.phone_iphone_rounded,
-            title: '¿Cuál es tu número celular?',
-            subtitle: 'Lo utilizaremos para alertas de transacciones inmediatas y verificación de dos factores (2FA).',
+            title: _tr(
+              '¿Cuál es tu número celular?',
+              'What is your mobile number?',
+            ),
+            subtitle: _tr(
+              'Lo usaremos para alertas de transacciones y verificación en dos pasos (2FA).',
+              'We will use it for transaction alerts and two-factor authentication (2FA).',
+            ),
           ),
           const SizedBox(height: 24),
-          _buildFieldLabel('Teléfono:'),
+          _buildFieldLabel(_tr('Teléfono:', 'Phone:')),
           AuthTextField(
             controller: _phoneController,
             hintText: '+57 300 123 4567',
@@ -786,8 +983,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 20),
           _buildFeatureNotice(
             icon: Icons.sms_outlined,
-            title: 'Alertas SMS en Tiempo Real',
-            description: 'Recibe alertas instantáneas en tu celular cada vez que haya un movimiento en tu cuenta.',
+            title: _tr('Alertas por SMS', 'SMS alerts'),
+            description: _tr(
+              'Recibe alertas en tu celular cuando haya movimientos en tu cuenta.',
+              'Receive alerts on your phone when activity occurs in your account.',
+            ),
           ),
         ],
       ),
@@ -803,23 +1003,34 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         children: [
           _buildStepHeader(
             icon: Icons.lock_outline_rounded,
-            title: 'Crea tu clave de acceso',
-            subtitle: 'Define una contraseña segura para iniciar sesión en tu cuenta bancaria.',
+            title: _tr(
+              'Crea tu clave de acceso',
+              'Create your sign-in password',
+            ),
+            subtitle: _tr(
+              'Define una contraseña segura para iniciar sesión en tu cuenta bancaria.',
+              'Choose a secure password to sign in to your bank account.',
+            ),
           ),
           const SizedBox(height: 24),
-          _buildFieldLabel('Contraseña:'),
+          _buildFieldLabel(_tr('Contraseña:', 'Password:')),
           AuthTextField(
             controller: _passwordController,
-            hintText: 'Contraseña (mínimo 6 caracteres)',
+            hintText: _tr(
+              'Contraseña (mínimo 6 caracteres)',
+              'Password (at least 6 characters)',
+            ),
             isPassword: true,
             prefixIcon: Icons.lock_rounded,
             isDark: false,
           ),
           const SizedBox(height: 16),
-          _buildFieldLabel('Verificación de contraseña:'),
+          _buildFieldLabel(
+            _tr('Verificación de contraseña:', 'Confirm password:'),
+          ),
           AuthTextField(
             controller: _passwordConfirmController,
-            hintText: 'Confirmar contraseña',
+            hintText: _tr('Confirmar contraseña', 'Confirm password'),
             isPassword: true,
             prefixIcon: Icons.lock_reset_rounded,
             isDark: false,
@@ -827,8 +1038,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 20),
           _buildFeatureNotice(
             icon: Icons.gpp_good_outlined,
-            title: 'Recomendaciones de Seguridad',
-            description: 'Usa una contraseña que no compartas con otros servicios y evita fechas de cumpleaños.',
+            title: _tr(
+              'Recomendaciones de seguridad',
+              'Security recommendations',
+            ),
+            description: _tr(
+              'Usa una contraseña exclusiva y evita incluir fechas de cumpleaños.',
+              'Use a unique password and avoid including birthdays.',
+            ),
           ),
         ],
       ),
@@ -844,24 +1061,38 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         children: [
           _buildStepHeader(
             icon: Icons.shield_rounded,
-            title: 'Crea tu PIN de seguridad',
-            subtitle: 'Define un PIN numérico de 4 dígitos para autorizar retiros, depósitos y transferencias.',
+            title: _tr('Crea tu PIN de seguridad', 'Create your security PIN'),
+            subtitle: _tr(
+              'Define un PIN numérico de 4 dígitos para autorizar operaciones bancarias.',
+              'Set a 4-digit numeric PIN to authorize banking transactions.',
+            ),
           ),
           const SizedBox(height: 24),
-          _buildFieldLabel('PIN Transaccional (4 dígitos):'),
+          _buildFieldLabel(
+            _tr(
+              'PIN transaccional (4 dígitos):',
+              'Transaction PIN (4 digits):',
+            ),
+          ),
           AuthTextField(
             controller: _pinController,
-            hintText: '4 dígitos numéricos (ej. 1234)',
+            hintText: _tr(
+              '4 dígitos numéricos (ej. 1234)',
+              '4 digits (e.g. 1234)',
+            ),
             isPassword: true,
             keyboardType: TextInputType.number,
             prefixIcon: Icons.pin_outlined,
             isDark: false,
           ),
           const SizedBox(height: 16),
-          _buildFieldLabel('Confirma tu PIN:'),
+          _buildFieldLabel(_tr('Confirma tu PIN:', 'Confirm your PIN:')),
           AuthTextField(
             controller: _pinConfirmController,
-            hintText: 'Repite tu PIN de 4 dígitos',
+            hintText: _tr(
+              'Repite tu PIN de 4 dígitos',
+              'Enter your 4-digit PIN again',
+            ),
             isPassword: true,
             keyboardType: TextInputType.number,
             prefixIcon: Icons.lock_reset_rounded,
@@ -870,8 +1101,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 20),
           _buildFeatureNotice(
             icon: Icons.verified_user_rounded,
-            title: 'Firma Digital de Operaciones',
-            description: 'Este PIN es exclusivo para autorizar movimientos de dinero y es independiente de tu contraseña de acceso.',
+            title: _tr(
+              'Firma digital de operaciones',
+              'Transaction authorization',
+            ),
+            description: _tr(
+              'Este PIN autoriza movimientos de dinero y es independiente de tu contraseña de acceso.',
+              'This PIN authorizes money transfers and is separate from your sign-in password.',
+            ),
           ),
         ],
       ),

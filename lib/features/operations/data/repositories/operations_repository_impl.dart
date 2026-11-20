@@ -21,6 +21,11 @@ class OperationsRepositoryImpl implements OperationsRepository {
   }
 
   @override
+  Future<RegisteredBankEntity> registerTenant(RegisteredBankEntity bank) {
+    return remoteDataSource.registerTenant(bank);
+  }
+
+  @override
   Future<List<BankCardEntity>> getCards() {
     return remoteDataSource.getCards();
   }

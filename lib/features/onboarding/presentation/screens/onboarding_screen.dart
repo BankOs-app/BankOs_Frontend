@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/localization/app_locale_provider.dart';
 import '../widgets/onboarding_illustrations.dart';
 import '../widgets/onboarding_page_indicator.dart';
 
@@ -17,26 +18,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<_OnboardingPageData> _pages = const [
-    _OnboardingPageData(
-      title: 'Banca digital\nsegura',
-      subtitle:
-          'Tu dinero y tu información protegidos con tecnología de última generación.',
-      illustration: SecurityIllustrationWidget(),
-    ),
-    _OnboardingPageData(
-      title: 'Haz crecer\ntu dinero',
-      subtitle:
-          'Ahorra, invierte y alcanza tus metas con herramientas simples y transparentes.',
-      illustration: GrowthIllustrationWidget(),
-    ),
-    _OnboardingPageData(
-      title: 'Todo en un\nsolo lugar',
-      subtitle:
-          'Tarjetas, transferencias, pagos y más, desde una sola app.',
-      illustration: CardsIllustrationWidget(),
-    ),
-  ];
+  static const int _pageCount = 3;
 
   @override
   void dispose() {
@@ -45,7 +27,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _onActionButtonPressed() {
-    if (_currentPage < _pages.length - 1) {
+    if (_currentPage < _pageCount - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeInOut,
@@ -57,7 +39,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLastPage = _currentPage == _pages.length - 1;
+    final lang = ref.watch(localeNotifierProvider);
+    final pages = [
+      _OnboardingPageData(
+        title: Tr.onboardingTitle(lang, 0),
+        subtitle: Tr.onboardingSubtitle(lang, 0),
+        illustration: const SecurityIllustrationWidget(),
+      ),
+      _OnboardingPageData(
+        title: Tr.onboardingTitle(lang, 1),
+        subtitle: Tr.onboardingSubtitle(lang, 1),
+        illustration: const GrowthIllustrationWidget(),
+      ),
+      _OnboardingPageData(
+        title: Tr.onboardingTitle(lang, 2),
+        subtitle: Tr.onboardingSubtitle(lang, 2),
+        illustration: const CardsIllustrationWidget(),
+      ),
+    ];
+    final isLastPage = _currentPage == pages.length - 1;
 
     return Scaffold(
       backgroundColor: AppColors.onboardingBackground,
@@ -74,8 +74,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.textSecondary,
                   ),
-                  child: const Text(
-                    'Omitir',
+                  child: Text(
+                    Tr.skip(lang),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -90,14 +90,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                itemCount: _pages.length,
+                itemCount: pages.length,
                 onPageChanged: (index) {
                   setState(() {
                     _currentPage = index;
                   });
                 },
                 itemBuilder: (context, index) {
-                  final page = _pages[index];
+                  final page = pages[index];
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 28.0),
                     child: Column(
@@ -141,7 +141,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
             // 3-Dot Page Indicator
             OnboardingPageIndicator(
-              count: _pages.length,
+              count: pages.length,
               currentIndex: _currentPage,
             ),
 
@@ -149,7 +149,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
             // Action Button: Clean rounded rectangle, no exaggerated shadows or borders
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 20.0,
+              ),
               child: SizedBox(
                 width: double.infinity,
                 height: 54,
@@ -166,7 +169,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     ),
                   ),
                   child: Text(
-                    isLastPage ? 'Comenzar' : 'Siguiente',
+                    isLastPage ? Tr.start(lang) : Tr.next(lang),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

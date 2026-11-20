@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/errors/user_facing_error.dart';
 import '../../../auth/data/datasources/auth_remote_data_source.dart';
 import '../../domain/entities/bank_account_entity.dart';
 import '../../domain/entities/bank_card_entity.dart';
@@ -28,7 +30,8 @@ class OperationsNotifier extends Notifier<OperationsState> {
       final banks = await repository.getBanks();
       final cards = await repository.getCards();
       final history = await repository.getHistory();
-      final currentActive = state.activeBank ?? (banks.isNotEmpty ? banks.first : null);
+      final currentActive =
+          state.activeBank ?? (banks.isNotEmpty ? banks.first : null);
       state = state.copyWith(
         status: OperationsStatus.success,
         accounts: accounts,
@@ -40,13 +43,13 @@ class OperationsNotifier extends Notifier<OperationsState> {
     } catch (e) {
       state = state.copyWith(
         status: OperationsStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: UserFacingError.from(e),
       );
     }
   }
 
   void switchActiveBank(RegisteredBankEntity bank) {
-    AuthRemoteDataSourceImpl.activeTenantSlug = bank.code;
+    AuthRemoteDataSourceImpl.activeTenantSlug = bank.slug;
     state = state.copyWith(activeBank: bank);
   }
 
@@ -55,27 +58,33 @@ class OperationsNotifier extends Notifier<OperationsState> {
     RegisteredBankEntity? target;
     if (lower.contains('bancolombia') || lower.contains('lombia')) {
       target = state.banks
-          .where((b) =>
-              b.code.contains('lombia') ||
-              b.name.toLowerCase().contains('bancolombia'))
+          .where(
+            (b) =>
+                b.code.contains('lombia') ||
+                b.name.toLowerCase().contains('bancolombia'),
+          )
           .firstOrNull;
     } else if (lower.contains('bogota')) {
       target = state.banks
-          .where((b) =>
-              b.code.contains('bogota') ||
-              b.name.toLowerCase().contains('bogot'))
+          .where(
+            (b) =>
+                b.code.contains('bogota') ||
+                b.name.toLowerCase().contains('bogot'),
+          )
           .firstOrNull;
     } else if (lower.contains('santander')) {
       target = state.banks
-          .where((b) =>
-              b.code.contains('santander') ||
-              b.name.toLowerCase().contains('santander'))
+          .where(
+            (b) =>
+                b.code.contains('santander') ||
+                b.name.toLowerCase().contains('santander'),
+          )
           .firstOrNull;
     } else if (lower.contains('nu')) {
       target = state.banks
-          .where((b) =>
-              b.code.contains('nu') ||
-              b.name.toLowerCase().contains('nu'))
+          .where(
+            (b) => b.code.contains('nu') || b.name.toLowerCase().contains('nu'),
+          )
           .firstOrNull;
     } else if (lower.contains('bankos')) {
       target = state.banks
@@ -87,9 +96,14 @@ class OperationsNotifier extends Notifier<OperationsState> {
     }
   }
 
-  void registerNewTenantBank(RegisteredBankEntity newBank) {
-    final updatedBanks = [...state.banks, newBank];
+  Future<RegisteredBankEntity> registerNewTenantBank(
+    RegisteredBankEntity newBank,
+  ) async {
+    final repository = ref.read(operationsRepositoryProvider);
+    final savedBank = await repository.registerTenant(newBank);
+    final updatedBanks = [...state.banks, savedBank];
     state = state.copyWith(banks: updatedBanks);
+    return savedBank;
   }
 
   Future<bool> updateBankBranding({
@@ -104,7 +118,7 @@ class OperationsNotifier extends Notifier<OperationsState> {
       final bank = state.banks.firstWhere((b) => b.id == bankId);
 
       await repository.updateBankBranding(
-        slug: bank.code.isNotEmpty ? bank.code : bank.id,
+        slug: bank.slug.isNotEmpty ? bank.slug : bank.id,
         primaryColor: primaryColorHex,
         accentColor: accentColorHex,
         logoUrl: logoKey,
@@ -122,7 +136,10 @@ class OperationsNotifier extends Notifier<OperationsState> {
       }).toList();
 
       RegisteredBankEntity? updatedActive = state.activeBank;
-      if (updatedActive?.id == bankId || (updatedActive == null && updatedBanks.isNotEmpty && updatedBanks.first.id == bankId)) {
+      if (updatedActive?.id == bankId ||
+          (updatedActive == null &&
+              updatedBanks.isNotEmpty &&
+              updatedBanks.first.id == bankId)) {
         updatedActive = (updatedActive ?? updatedBanks.first).copyWith(
           primaryColorHex: primaryColorHex,
           accentColorHex: accentColorHex,
@@ -134,7 +151,8 @@ class OperationsNotifier extends Notifier<OperationsState> {
         status: OperationsStatus.success,
         banks: updatedBanks,
         activeBank: updatedActive,
-        successMessage: 'Identidad visual de ${bank.name} actualizada exitosamente.',
+        successMessage:
+            'Identidad visual de ${bank.name} actualizada exitosamente.',
       );
       return true;
     } catch (_) {
@@ -196,10 +214,7 @@ class OperationsNotifier extends Notifier<OperationsState> {
     } catch (e) {
       state = state.copyWith(
         status: OperationsStatus.error,
-        errorMessage: e
-            .toString()
-            .replaceFirst('Exception: ', '')
-            .replaceFirst('ArgumentError: ', ''),
+        errorMessage: UserFacingError.from(e),
       );
       return false;
     }
@@ -236,10 +251,7 @@ class OperationsNotifier extends Notifier<OperationsState> {
     } catch (e) {
       state = state.copyWith(
         status: OperationsStatus.error,
-        errorMessage: e
-            .toString()
-            .replaceFirst('Exception: ', '')
-            .replaceFirst('ArgumentError: ', ''),
+        errorMessage: UserFacingError.from(e),
       );
       return false;
     }
@@ -272,10 +284,7 @@ class OperationsNotifier extends Notifier<OperationsState> {
     } catch (e) {
       state = state.copyWith(
         status: OperationsStatus.error,
-        errorMessage: e
-            .toString()
-            .replaceFirst('Exception: ', '')
-            .replaceFirst('ArgumentError: ', ''),
+        errorMessage: UserFacingError.from(e),
       );
       return false;
     }
@@ -294,12 +303,17 @@ class OperationsNotifier extends Notifier<OperationsState> {
 
       // Si la moneda en que se retira difiere de la moneda de la tarjeta
       double debitAmount = amount;
-      String desc = concept ?? '${card.cardTypeLabel} (${card.maskedCardNumber})';
+      String desc =
+          concept ?? '${card.cardTypeLabel} (${card.maskedCardNumber})';
 
       if (withdrawCurrency != card.currency) {
-        final rate = StaticExchangeRate.getRate(withdrawCurrency, card.currency);
+        final rate = StaticExchangeRate.getRate(
+          withdrawCurrency,
+          card.currency,
+        );
         debitAmount = amount * rate;
-        desc = 'Retiro en $withdrawCurrency con conversión desde ${card.currency}';
+        desc =
+            'Retiro en $withdrawCurrency con conversión desde ${card.currency}';
       }
 
       final record = await repository.withdrawFromCard(
@@ -327,10 +341,7 @@ class OperationsNotifier extends Notifier<OperationsState> {
     } catch (e) {
       state = state.copyWith(
         status: OperationsStatus.error,
-        errorMessage: e
-            .toString()
-            .replaceFirst('Exception: ', '')
-            .replaceFirst('ArgumentError: ', ''),
+        errorMessage: UserFacingError.from(e),
       );
       return false;
     }
@@ -369,10 +380,7 @@ class OperationsNotifier extends Notifier<OperationsState> {
     } catch (e) {
       state = state.copyWith(
         status: OperationsStatus.error,
-        errorMessage: e
-            .toString()
-            .replaceFirst('Exception: ', '')
-            .replaceFirst('ArgumentError: ', ''),
+        errorMessage: UserFacingError.from(e),
       );
       return false;
     }
@@ -411,10 +419,7 @@ class OperationsNotifier extends Notifier<OperationsState> {
     } catch (e) {
       state = state.copyWith(
         status: OperationsStatus.error,
-        errorMessage: e
-            .toString()
-            .replaceFirst('Exception: ', '')
-            .replaceFirst('ArgumentError: ', ''),
+        errorMessage: UserFacingError.from(e),
       );
       return false;
     }
@@ -458,20 +463,21 @@ class OperationsNotifier extends Notifier<OperationsState> {
     } catch (e) {
       state = state.copyWith(
         status: OperationsStatus.error,
-        errorMessage: e
-            .toString()
-            .replaceFirst('Exception: ', '')
-            .replaceFirst('ArgumentError: ', ''),
+        errorMessage: UserFacingError.from(e),
       );
       return false;
     }
   }
 
   void enrollOriginAccount(ExternalOriginAccountEntity account) {
-    final current = List<ExternalOriginAccountEntity>.from(state.originAccounts);
-    if (!current.any((a) =>
-        a.accountNumber == account.accountNumber &&
-        a.bankName == account.bankName)) {
+    final current = List<ExternalOriginAccountEntity>.from(
+      state.originAccounts,
+    );
+    if (!current.any(
+      (a) =>
+          a.accountNumber == account.accountNumber &&
+          a.bankName == account.bankName,
+    )) {
       current.add(account);
       state = state.copyWith(originAccounts: current);
     }
@@ -534,18 +540,21 @@ class OperationsNotifier extends Notifier<OperationsState> {
     final newOrigin = ExternalOriginAccountEntity(
       id: 'orig_${DateTime.now().millisecondsSinceEpoch}',
       bankName: bank.name,
-      accountType:
-          cardType == BankCardType.debit ? 'Cuenta Débito' : 'Cuenta Crédito',
+      accountType: cardType == BankCardType.debit
+          ? 'Cuenta Débito'
+          : 'Cuenta Crédito',
       accountNumber: accountNumber,
       holderName: holderName,
       currency: currency,
       balance: initialBalance,
     );
 
-    final updatedOrigins =
-        List<ExternalOriginAccountEntity>.from(state.originAccounts);
+    final updatedOrigins = List<ExternalOriginAccountEntity>.from(
+      state.originAccounts,
+    );
     if (!updatedOrigins.any(
-        (o) => o.accountNumber == accountNumber && o.bankName == bank.name)) {
+      (o) => o.accountNumber == accountNumber && o.bankName == bank.name,
+    )) {
       updatedOrigins.add(newOrigin);
     }
 
@@ -553,8 +562,9 @@ class OperationsNotifier extends Notifier<OperationsState> {
     final newAccount = BankAccountEntity(
       id: accId,
       accountNumber: newCard.cardNumber,
-      accountType:
-          cardType == BankCardType.debit ? 'Cuenta Débito' : 'Cuenta Crédito',
+      accountType: cardType == BankCardType.debit
+          ? 'Cuenta Débito'
+          : 'Cuenta Crédito',
       balance: initialBalance,
       currency: currency,
       isActive: true,
@@ -595,7 +605,9 @@ class OperationsNotifier extends Notifier<OperationsState> {
       double rate = 1.0;
       if (originBankOsCard.currency != destinationAccount.currency) {
         rate = StaticExchangeRate.getRate(
-            originBankOsCard.currency, destinationAccount.currency);
+          originBankOsCard.currency,
+          destinationAccount.currency,
+        );
         creditedAmount = withdrawAmountUsd * rate;
       }
 
@@ -603,12 +615,14 @@ class OperationsNotifier extends Notifier<OperationsState> {
       final updatedCards = state.cards.map((c) {
         if (c.id == originBankOsCard.id) {
           return c.copyWith(
-              availableBalance: c.availableBalance - withdrawAmountUsd);
+            availableBalance: c.availableBalance - withdrawAmountUsd,
+          );
         }
         if (c.bankName == destinationAccount.bankName &&
             c.currency == destinationAccount.currency) {
           return c.copyWith(
-              availableBalance: c.availableBalance + creditedAmount);
+            availableBalance: c.availableBalance + creditedAmount,
+          );
         }
         return c;
       }).toList();
@@ -635,7 +649,8 @@ class OperationsNotifier extends Notifier<OperationsState> {
         id: 'wdr_${DateTime.now().millisecondsSinceEpoch}',
         type: OperationType.withdrawal,
         title: 'Retiro hacia ${destinationAccount.bankName}',
-        description: concept ??
+        description:
+            concept ??
             'Retiro desde BankOs Global hacia cuenta ${destinationAccount.accountType} (${destinationAccount.currency})',
         amount: withdrawAmountUsd,
         currency: originBankOsCard.currency,
@@ -662,10 +677,7 @@ class OperationsNotifier extends Notifier<OperationsState> {
     } catch (e) {
       state = state.copyWith(
         status: OperationsStatus.error,
-        errorMessage: e
-            .toString()
-            .replaceFirst('Exception: ', '')
-            .replaceFirst('ArgumentError: ', ''),
+        errorMessage: UserFacingError.from(e),
       );
       return false;
     }

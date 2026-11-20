@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/errors/user_facing_error.dart';
 import '../../../../core/usecases/usecase.dart';
 import 'dashboard_providers.dart';
 import 'dashboard_state.dart';
@@ -14,8 +16,9 @@ class DashboardNotifier extends Notifier<DashboardState> {
     state = state.copyWith(status: DashboardStatus.loading);
     try {
       final getAccountUseCase = ref.read(getAccountUseCaseProvider);
-      final getRecentTransactionsUseCase =
-          ref.read(getRecentTransactionsUseCaseProvider);
+      final getRecentTransactionsUseCase = ref.read(
+        getRecentTransactionsUseCaseProvider,
+      );
 
       final account = await getAccountUseCase(const NoParams());
       final transactions = await getRecentTransactionsUseCase(const NoParams());
@@ -28,7 +31,7 @@ class DashboardNotifier extends Notifier<DashboardState> {
     } catch (e) {
       state = state.copyWith(
         status: DashboardStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: UserFacingError.from(e),
       );
     }
   }

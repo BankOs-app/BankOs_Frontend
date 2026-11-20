@@ -1,9 +1,11 @@
 import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/localization/app_locale_provider.dart';
 import '../../../../core/widgets/bankos_logo.dart';
 import '../widgets/wave_background_painter.dart';
 
@@ -43,6 +45,7 @@ class _LaunchScreenState extends ConsumerState<LaunchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(localeNotifierProvider);
     return Scaffold(
       backgroundColor: AppColors.launchBackground,
       body: GestureDetector(
@@ -52,18 +55,16 @@ class _LaunchScreenState extends ConsumerState<LaunchScreen> {
           children: [
             // Smooth, subtle flowing wave texture at lower section
             const Positioned.fill(
-              child: CustomPaint(
-                painter: WaveBackgroundPainter(),
-              ),
+              child: CustomPaint(painter: WaveBackgroundPainter()),
             ),
 
             // BankOs centered brand logo (vertical layout matching mockup)
-            const Center(
+            Center(
               child: BankOsLogo(
                 isVertical: true,
                 iconSize: 76,
                 fontSize: 40,
-                subtitle: 'Tu banco digital,\nsiempre contigo',
+                subtitle: Tr.launchSubtitle(lang),
                 textColor: Colors.white,
                 subtitleColor: Color(0xFFE2E8F0),
                 subtitleFontSize: 15,

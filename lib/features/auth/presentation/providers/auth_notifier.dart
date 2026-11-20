@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/errors/user_facing_error.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../domain/entities/user_entity.dart';
@@ -26,19 +28,11 @@ class AuthNotifier extends Notifier<AuthState> {
         token: rawUser.token,
         role: rawUser.role,
       );
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-      );
+      state = state.copyWith(status: AuthStatus.authenticated, user: user);
       return true;
     } catch (e) {
-      final msg = e is ServerException
-          ? e.message
-          : e.toString().replaceFirst('ServerException: ', '').replaceFirst('Exception: ', '');
-      state = state.copyWith(
-        status: AuthStatus.error,
-        errorMessage: msg,
-      );
+      final msg = e is ServerException ? e.message : UserFacingError.from(e);
+      state = state.copyWith(status: AuthStatus.error, errorMessage: msg);
       return false;
     }
   }
@@ -53,19 +47,11 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final repository = ref.read(authRepositoryProvider);
       final user = await repository.loginWithBiometrics();
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-      );
+      state = state.copyWith(status: AuthStatus.authenticated, user: user);
       return true;
     } catch (e) {
-      final msg = e is ServerException
-          ? e.message
-          : e.toString().replaceFirst('ServerException: ', '').replaceFirst('Exception: ', '');
-      state = state.copyWith(
-        status: AuthStatus.error,
-        errorMessage: msg,
-      );
+      final msg = e is ServerException ? e.message : UserFacingError.from(e);
+      state = state.copyWith(status: AuthStatus.error, errorMessage: msg);
       return false;
     }
   }
@@ -89,19 +75,11 @@ class AuthNotifier extends Notifier<AuthState> {
         password: password,
         transactionalPin: transactionalPin,
       );
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-      );
+      state = state.copyWith(status: AuthStatus.authenticated, user: user);
       return true;
     } catch (e) {
-      final msg = e is ServerException
-          ? e.message
-          : e.toString().replaceFirst('ServerException: ', '').replaceFirst('Exception: ', '');
-      state = state.copyWith(
-        status: AuthStatus.error,
-        errorMessage: msg,
-      );
+      final msg = e is ServerException ? e.message : UserFacingError.from(e);
+      state = state.copyWith(status: AuthStatus.error, errorMessage: msg);
       return false;
     }
   }

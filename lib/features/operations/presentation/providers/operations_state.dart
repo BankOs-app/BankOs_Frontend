@@ -148,9 +148,9 @@ class OperationsState {
 
   /// The global BankOs entity
   RegisteredBankEntity get globalBank => banks.firstWhere(
-        (b) => b.isGlobal || b.id == 'bank_bankos_global',
-        orElse: () => banks.first,
-      );
+    (b) => b.isGlobal || b.id == 'bank_bankos_global',
+    orElse: () => banks.first,
+  );
 
   /// Whether current view is focused on the central BankOs global hub
   bool get isViewingGlobal =>
@@ -162,10 +162,26 @@ class OperationsState {
 
   /// Accounts isolated to the active tenant
   List<BankAccountEntity> get activeTenantAccounts {
-    final tenantId = currentBank.tenantId;
-    final list = accounts.where((a) => a.tenantId == tenantId).toList();
+    final list = accounts
+        .where(
+          (account) =>
+              account.tenantId == currentBank.id ||
+              account.tenantId == currentBank.tenantId,
+        )
+        .toList();
     if (list.isNotEmpty) return list;
-    return accounts.where((a) => a.currency == currentBank.currency).toList();
+
+    // Offline demo accounts are linked through their seeded cards.
+    final sessionAccountIds = activeTenantCards
+        .expand((card) => [card.accountId, card.cardNumber])
+        .toSet();
+    return accounts
+        .where(
+          (account) =>
+              sessionAccountIds.contains(account.id) ||
+              sessionAccountIds.contains(account.accountNumber),
+        )
+        .toList();
   }
 
   /// Cards isolated to the active bank / tenant

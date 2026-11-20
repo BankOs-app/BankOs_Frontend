@@ -1,8 +1,15 @@
 import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 abstract class ApiEndpoints {
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: '',
+  );
+
   static String get baseUrl {
+    if (_configuredBaseUrl.isNotEmpty) return _configuredBaseUrl;
     if (kIsWeb) return 'http://localhost:3000/api/v1';
     try {
       if (Platform.isAndroid) return 'http://10.0.2.2:3000/api/v1';
@@ -41,6 +48,5 @@ abstract class ApiEndpoints {
       '/tenants/$slug/transactions/transfers';
   static String previewTransfer(String slug) =>
       '/tenants/$slug/transactions/preview';
-  static String transactions(String slug) =>
-      '/tenants/$slug/transactions';
+  static String transactions(String slug) => '/tenants/$slug/transactions';
 }

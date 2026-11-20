@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import '../../../../core/errors/user_facing_error.dart';
+
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/bank_account_entity.dart';
@@ -13,7 +15,7 @@ abstract class OperationsRemoteDataSource {
   Future<List<OperationRecordEntity>> getHistory();
   Future<List<RegisteredBankEntity>> getBanks();
   Future<List<BankCardEntity>> getCards();
-  Future<void> registerTenant(RegisteredBankEntity bank);
+  Future<RegisteredBankEntity> registerTenant(RegisteredBankEntity bank);
 
   Future<OperationRecordEntity> deposit({
     required String accountId,
@@ -272,7 +274,8 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       id: 'tx_bos_01',
       type: OperationType.deposit,
       title: 'Capitalización BaaS Multi-tenant',
-      description: 'Aporte de liquidez centralizada para operaciones interbancarias',
+      description:
+          'Aporte de liquidez centralizada para operaciones interbancarias',
       amount: 50000.00,
       currency: 'USD',
       timestamp: DateTime.now().subtract(const Duration(minutes: 45)),
@@ -448,11 +451,23 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
 
   String _resolveTenantSlug(String? accountIdentifier) {
     if (accountIdentifier != null) {
-      final acc = _accounts.where((a) =>
-          a.id == accountIdentifier ||
-          a.accountNumber == accountIdentifier ||
-          a.accountNumber.endsWith(accountIdentifier)).firstOrNull;
+      final acc = _accounts
+          .where(
+            (a) =>
+                a.id == accountIdentifier ||
+                a.accountNumber == accountIdentifier ||
+                a.accountNumber.endsWith(accountIdentifier),
+          )
+          .firstOrNull;
       if (acc != null) {
+        final bank = _banks
+            .where(
+              (candidate) =>
+                  candidate.id == acc.tenantId ||
+                  candidate.tenantId == acc.tenantId,
+            )
+            .firstOrNull;
+        if (bank != null) return bank.slug;
         if (acc.tenantId.contains('santander')) return 'banco-santander';
         if (acc.tenantId.contains('bogota')) return 'banco-bogota';
         if (acc.tenantId.contains('nu')) return 'banco-nu';
@@ -465,10 +480,14 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
   void _syncCardsWithAccounts() {
     for (int i = 0; i < _cards.length; i++) {
       final card = _cards[i];
-      final acc = _accounts.where((a) =>
-          a.id == card.accountId ||
-          a.accountNumber == card.cardNumber ||
-          a.accountNumber.endsWith(card.cardNumber)).firstOrNull;
+      final acc = _accounts
+          .where(
+            (a) =>
+                a.id == card.accountId ||
+                a.accountNumber == card.cardNumber ||
+                a.accountNumber.endsWith(card.cardNumber),
+          )
+          .firstOrNull;
       if (acc != null) {
         _cards[i] = card.copyWith(
           availableBalance: acc.balance,
@@ -491,56 +510,63 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
             return RegisteredBankEntity(
               id: m['id'] as String? ?? slug,
               name: m['name'] as String? ?? slug,
-              code: slug,
+              code: m['code'] as String? ?? slug.toUpperCase(),
+              assignedSlug: slug,
+              assignedSubdomain: m['subdomain'] as String? ?? '$slug.bankos.io',
               tenantId: m['schemaName'] as String? ?? slug,
               currency: m['primaryCurrency'] as String? ?? 'COP',
               isGlobal: slug.contains('global'),
-              primaryColorHex: m['primaryColor'] as String? ??
+              primaryColorHex:
+                  m['primaryColor'] as String? ??
                   (slug.contains('lombia')
                       ? '#000000'
                       : (slug.contains('bogota')
-                          ? '#002D72'
-                          : (slug.contains('santander')
-                              ? '#EC0000'
-                              : (slug.contains('nu')
-                                  ? '#820AD1'
-                                  : '#0A2540')))),
-              accentColorHex: m['accentColor'] as String? ??
+                            ? '#002D72'
+                            : (slug.contains('santander')
+                                  ? '#EC0000'
+                                  : (slug.contains('nu')
+                                        ? '#820AD1'
+                                        : '#0A2540')))),
+              accentColorHex:
+                  m['accentColor'] as String? ??
                   (slug.contains('lombia')
                       ? '#FDDA24'
                       : (slug.contains('bogota')
-                          ? '#004BB1'
-                          : (slug.contains('santander')
-                              ? '#CC0000'
-                              : (slug.contains('nu')
-                                  ? '#9B3FE6'
-                                  : '#0052FF')))),
-              logoKey: m['logoUrl'] as String? ??
+                            ? '#004BB1'
+                            : (slug.contains('santander')
+                                  ? '#CC0000'
+                                  : (slug.contains('nu')
+                                        ? '#9B3FE6'
+                                        : '#0052FF')))),
+              logoKey:
+                  m['logoUrl'] as String? ??
                   (slug.contains('lombia')
                       ? 'bancolombia'
                       : (slug.contains('bogota')
-                          ? 'banco-bogota'
-                          : (slug.contains('santander')
-                              ? 'banco-santander'
-                              : (slug.contains('nu')
-                                  ? 'banco-nu'
-                                  : 'bankos')))),
+                            ? 'banco-bogota'
+                            : (slug.contains('santander')
+                                  ? 'banco-santander'
+                                  : (slug.contains('nu')
+                                        ? 'banco-nu'
+                                        : 'bankos')))),
             );
           }).toList();
 
           if (mappedBanks.isNotEmpty) {
             _banks.clear();
-            _banks.add(const RegisteredBankEntity(
-              id: 'bank_bankos_global',
-              name: 'Cuenta Global BankOs',
-              code: 'BOS',
-              tenantId: 'tenant_bankos_global',
-              currency: 'USD',
-              isGlobal: true,
-              primaryColorHex: '#031633',
-              accentColorHex: '#6DA5FA',
-              logoKey: 'bankos',
-            ));
+            _banks.add(
+              const RegisteredBankEntity(
+                id: 'bank_bankos_global',
+                name: 'Cuenta Global BankOs',
+                code: 'BOS',
+                tenantId: 'tenant_bankos_global',
+                currency: 'USD',
+                isGlobal: true,
+                primaryColorHex: '#031633',
+                accentColorHex: '#6DA5FA',
+                logoKey: 'bankos',
+              ),
+            );
             _banks.addAll(mappedBanks);
             return List.unmodifiable(_banks);
           }
@@ -551,23 +577,37 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
   }
 
   @override
-  Future<void> registerTenant(RegisteredBankEntity bank) async {
-    try {
-      await dioClient.post(
-        ApiEndpoints.tenants,
-        data: {
-          'name': bank.name,
-          'slug': bank.code.isNotEmpty ? bank.code : bank.name.toLowerCase().replaceAll(' ', '-'),
-          'primaryCurrency': bank.currency,
-          'maxTransactionAmount': 50000000.0,
-          'feeType': 'FIXED',
-          'feeValue': 2500.0,
-        },
-      );
-    } catch (_) {}
-    if (!_banks.any((b) => b.id == bank.id)) {
-      _banks.add(bank);
+  Future<RegisteredBankEntity> registerTenant(RegisteredBankEntity bank) async {
+    final slug = bank.code.toLowerCase().replaceAll('_', '-');
+    final response = await dioClient.post(
+      ApiEndpoints.tenants,
+      data: {
+        'name': bank.name,
+        'code': bank.code.toUpperCase(),
+        'subdomain': bank.subdomain.toLowerCase(),
+        'slug': slug,
+        'primaryCurrency': bank.currency,
+        'maxTransactionAmount': '50000000.00',
+        'feeType': 'FIXED',
+        'feeValue': '2500.0000',
+      },
+    );
+    if (response.data is! Map<String, dynamic>) {
+      throw StateError('Invalid tenant registration response');
     }
+    final data = response.data as Map<String, dynamic>;
+    final saved = bank.copyWith(
+      id: data['id'] as String? ?? bank.id,
+      code: data['code'] as String? ?? bank.code.toUpperCase(),
+      assignedSlug: data['slug'] as String? ?? slug,
+      assignedSubdomain: data['subdomain'] as String? ?? bank.subdomain,
+      tenantId: data['schemaName'] as String? ?? bank.tenantId,
+      currency: data['primaryCurrency'] as String? ?? bank.currency,
+    );
+    if (!_banks.any((existing) => existing.id == saved.id)) {
+      _banks.add(saved);
+    }
+    return saved;
   }
 
   @override
@@ -594,7 +634,7 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
 
     // Update in local cache as well
     for (int i = 0; i < _banks.length; i++) {
-      if (_banks[i].code == slug || _banks[i].id == slug) {
+      if (_banks[i].slug == slug || _banks[i].id == slug) {
         _banks[i] = _banks[i].copyWith(
           primaryColorHex: primaryColor,
           accentColorHex: accentColor,
@@ -617,8 +657,8 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
           final accType = curr == 'COP'
               ? 'Cuenta Débito'
               : (curr == 'USD'
-                  ? 'Cuenta en Dólares (USD)'
-                  : 'Cuenta en Euros (EUR)');
+                    ? 'Cuenta en Dólares (USD)'
+                    : 'Cuenta en Euros (EUR)');
           final bal = double.tryParse(m['balance']?.toString() ?? '0') ?? 0.0;
           return BankAccountEntity(
             id: m['id'] as String? ?? accNum,
@@ -656,7 +696,10 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       if (response.statusCode == 200 && response.data != null) {
         final List<dynamic> list;
         if (response.data is Map<String, dynamic>) {
-          list = (response.data as Map<String, dynamic>)['data'] as List<dynamic>? ?? [];
+          list =
+              (response.data as Map<String, dynamic>)['data']
+                  as List<dynamic>? ??
+              [];
         } else if (response.data is List<dynamic>) {
           list = response.data as List<dynamic>;
         } else {
@@ -668,25 +711,34 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
           final opType = typeStr == 'DEPOSIT'
               ? OperationType.deposit
               : (typeStr == 'WITHDRAWAL'
-                  ? OperationType.withdrawal
-                  : OperationType.internalTransfer);
-          final amt = double.tryParse(m['originalAmount']?.toString() ?? '0') ?? 0.0;
+                    ? OperationType.withdrawal
+                    : OperationType.internalTransfer);
+          final amt =
+              double.tryParse(m['originalAmount']?.toString() ?? '0') ?? 0.0;
           final curr = m['originalCurrency'] as String? ?? 'COP';
-          final date = DateTime.tryParse(m['createdAt']?.toString() ?? '') ?? DateTime.now();
+          final date =
+              DateTime.tryParse(m['createdAt']?.toString() ?? '') ??
+              DateTime.now();
 
           return OperationRecordEntity(
-            id: m['id'] as String? ?? 'tx_${DateTime.now().millisecondsSinceEpoch}',
+            id:
+                m['id'] as String? ??
+                'tx_${DateTime.now().millisecondsSinceEpoch}',
             type: opType,
             title: opType == OperationType.deposit
                 ? 'Depósito bancario'
                 : (opType == OperationType.withdrawal
-                    ? 'Retiro de fondos'
-                    : 'Transferencia realizada'),
+                      ? 'Retiro de fondos'
+                      : 'Transferencia realizada'),
             description: 'Operación registrada en ledger institucional',
             amount: amt,
             currency: curr,
             timestamp: date,
-            originAccountId: (m['sourceAccountId'] ?? m['destinationAccountId'] ?? 'account_main').toString(),
+            originAccountId:
+                (m['sourceAccountId'] ??
+                        m['destinationAccountId'] ??
+                        'account_main')
+                    .toString(),
             destinationAccountId: m['destinationAccountId']?.toString(),
           );
         }).toList();
@@ -710,7 +762,9 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required double amount,
     String? concept,
   }) async {
-    final idx = _accounts.indexWhere((a) => a.id == accountId || a.accountNumber == accountId);
+    final idx = _accounts.indexWhere(
+      (a) => a.id == accountId || a.accountNumber == accountId,
+    );
     final targetAccount = idx != -1 ? _accounts[idx] : null;
     final accountNumber = targetAccount?.accountNumber ?? accountId;
     final slug = _resolveTenantSlug(accountId);
@@ -723,15 +777,15 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
           'amount': amount.toStringAsFixed(2),
         },
         options: Options(
-          headers: {
-            'Idempotency-Key': DioClient.generateIdempotencyKey(),
-          },
+          headers: {'Idempotency-Key': DioClient.generateIdempotencyKey()},
         ),
       );
 
-      if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          response.data != null) {
         final data = response.data as Map<String, dynamic>;
-        final newBal = double.tryParse(data['newBalance']?.toString() ?? '') ??
+        final newBal =
+            double.tryParse(data['newBalance']?.toString() ?? '') ??
             ((targetAccount?.balance ?? 0) + amount);
 
         if (idx != -1 && targetAccount != null) {
@@ -740,12 +794,15 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         }
 
         final record = OperationRecordEntity(
-          id: data['transactionId'] as String? ?? 'dep_${DateTime.now().millisecondsSinceEpoch}',
+          id:
+              data['transactionId'] as String? ??
+              'dep_${DateTime.now().millisecondsSinceEpoch}',
           type: OperationType.deposit,
           title: 'Depósito a cuenta',
           description: concept ?? 'Abono de fondos exitoso',
           amount: amount,
-          currency: data['currency'] as String? ?? targetAccount?.currency ?? 'COP',
+          currency:
+              data['currency'] as String? ?? targetAccount?.currency ?? 'COP',
           timestamp: DateTime.now(),
           originAccountId: accountId,
         );
@@ -790,7 +847,11 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
 
       // Ejecutar depósito sobre la cuenta vinculada si existe
       if (currentCard.accountId.isNotEmpty) {
-        return deposit(accountId: currentCard.accountId, amount: amount, concept: concept);
+        return deposit(
+          accountId: currentCard.accountId,
+          amount: amount,
+          concept: concept,
+        );
       }
 
       _cards[cardIdx] = currentCard.copyWith(
@@ -801,7 +862,9 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         id: 'dep_${DateTime.now().millisecondsSinceEpoch}',
         type: OperationType.deposit,
         title: 'Depósito Cuenta ${currentCard.bankName}',
-        description: concept ?? 'Abono de fondos exitoso (${currentCard.maskedCardNumber})',
+        description:
+            concept ??
+            'Abono de fondos exitoso (${currentCard.maskedCardNumber})',
         amount: amount,
         currency: currentCard.currency,
         timestamp: DateTime.now(),
@@ -819,7 +882,9 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required double amount,
     String? concept,
   }) async {
-    final idx = _accounts.indexWhere((a) => a.id == accountId || a.accountNumber == accountId);
+    final idx = _accounts.indexWhere(
+      (a) => a.id == accountId || a.accountNumber == accountId,
+    );
     final targetAccount = idx != -1 ? _accounts[idx] : null;
     final accountNumber = targetAccount?.accountNumber ?? accountId;
     final slug = _resolveTenantSlug(accountId);
@@ -832,15 +897,15 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
           'amount': amount.toStringAsFixed(2),
         },
         options: Options(
-          headers: {
-            'Idempotency-Key': DioClient.generateIdempotencyKey(),
-          },
+          headers: {'Idempotency-Key': DioClient.generateIdempotencyKey()},
         ),
       );
 
-      if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          response.data != null) {
         final data = response.data as Map<String, dynamic>;
-        final newBal = double.tryParse(data['newBalance']?.toString() ?? '') ??
+        final newBal =
+            double.tryParse(data['newBalance']?.toString() ?? '') ??
             ((targetAccount?.balance ?? 0) - amount);
 
         if (idx != -1 && targetAccount != null) {
@@ -849,19 +914,26 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         }
 
         final record = OperationRecordEntity(
-          id: data['transactionId'] as String? ?? 'wit_${DateTime.now().millisecondsSinceEpoch}',
+          id:
+              data['transactionId'] as String? ??
+              'wit_${DateTime.now().millisecondsSinceEpoch}',
           type: OperationType.withdrawal,
           title: 'Retiro de efectivo',
           description: concept ?? 'Retiro de fondos exitoso',
           amount: amount,
-          currency: data['currency'] as String? ?? targetAccount?.currency ?? 'COP',
+          currency:
+              data['currency'] as String? ?? targetAccount?.currency ?? 'COP',
           timestamp: DateTime.now(),
           originAccountId: accountId,
         );
         _history.insert(0, record);
         return record;
       }
-    } catch (_) {}
+    } catch (error) {
+      if (DioClient.authToken != null && DioClient.authToken!.isNotEmpty) {
+        throw Exception(UserFacingError.from(error));
+      }
+    }
 
     if (idx != -1) {
       final acc = _accounts[idx];
@@ -894,6 +966,13 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     String? concept,
   }) async {
     final cardIdx = _cards.indexWhere((c) => c.id == card.id);
+    if (cardIdx == -1 && card.accountId.isNotEmpty) {
+      return withdraw(
+        accountId: card.accountId,
+        amount: amount,
+        concept: concept,
+      );
+    }
     if (cardIdx != -1) {
       final currentCard = _cards[cardIdx];
       if (amount <= 0) {
@@ -904,7 +983,11 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       }
 
       if (currentCard.accountId.isNotEmpty) {
-        return withdraw(accountId: currentCard.accountId, amount: amount, concept: concept);
+        return withdraw(
+          accountId: currentCard.accountId,
+          amount: amount,
+          concept: concept,
+        );
       }
 
       _cards[cardIdx] = currentCard.copyWith(
@@ -915,7 +998,8 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
         id: 'wdr_${DateTime.now().millisecondsSinceEpoch}',
         type: OperationType.withdrawal,
         title: 'Retiro Tarjeta ${currentCard.bankName}',
-        description: concept ?? 'Retiro de fondos (${currentCard.maskedCardNumber})',
+        description:
+            concept ?? 'Retiro de fondos (${currentCard.maskedCardNumber})',
         amount: amount,
         currency: currentCard.currency,
         timestamp: DateTime.now(),
@@ -934,8 +1018,14 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
     required double amount,
     String? concept,
   }) async {
-    final originIdx = _accounts.indexWhere((a) => a.id == originAccountId || a.accountNumber == originAccountId);
-    final destIdx = _accounts.indexWhere((a) => a.id == destinationAccountId || a.accountNumber == destinationAccountId);
+    final originIdx = _accounts.indexWhere(
+      (a) => a.id == originAccountId || a.accountNumber == originAccountId,
+    );
+    final destIdx = _accounts.indexWhere(
+      (a) =>
+          a.id == destinationAccountId ||
+          a.accountNumber == destinationAccountId,
+    );
 
     final originAcc = originIdx != -1 ? _accounts[originIdx] : null;
     final destAcc = destIdx != -1 ? _accounts[destIdx] : null;
@@ -954,15 +1044,16 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
           'sourceAmount': amount.toStringAsFixed(2),
         },
         options: Options(
-          headers: {
-            'Idempotency-Key': DioClient.generateIdempotencyKey(),
-          },
+          headers: {'Idempotency-Key': DioClient.generateIdempotencyKey()},
         ),
       );
 
-      if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          response.data != null) {
         final data = response.data as Map<String, dynamic>;
-        final newSrcBal = double.tryParse(data['sourceNewBalance']?.toString() ?? '');
+        final newSrcBal = double.tryParse(
+          data['sourceNewBalance']?.toString() ?? '',
+        );
 
         if (originIdx != -1 && originAcc != null) {
           _accounts[originIdx] = originAcc.copyWith(
@@ -970,17 +1061,26 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
           );
         }
         double creditedAmount = amount;
-        if (originAcc != null && destAcc != null && originAcc.currency != destAcc.currency) {
-          final rate = StaticExchangeRate.getRate(originAcc.currency, destAcc.currency);
+        if (originAcc != null &&
+            destAcc != null &&
+            originAcc.currency != destAcc.currency) {
+          final rate = StaticExchangeRate.getRate(
+            originAcc.currency,
+            destAcc.currency,
+          );
           creditedAmount = amount * rate;
         }
         if (destIdx != -1 && destAcc != null) {
-          _accounts[destIdx] = destAcc.copyWith(balance: destAcc.balance + creditedAmount);
+          _accounts[destIdx] = destAcc.copyWith(
+            balance: destAcc.balance + creditedAmount,
+          );
         }
         _syncCardsWithAccounts();
 
         final record = OperationRecordEntity(
-          id: data['transactionId'] as String? ?? 'tx_${DateTime.now().millisecondsSinceEpoch}',
+          id:
+              data['transactionId'] as String? ??
+              'tx_${DateTime.now().millisecondsSinceEpoch}',
           type: OperationType.internalTransfer,
           title: 'Transferencia realizada',
           description: concept ?? 'Transferencia enviada con éxito',
@@ -1110,10 +1210,12 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       creditedAmount = amount * rate;
     }
 
-    _cards[origIdx] =
-        orig.copyWith(availableBalance: orig.availableBalance - totalDebit);
-    _cards[destIdx] =
-        dest.copyWith(availableBalance: dest.availableBalance + creditedAmount);
+    _cards[origIdx] = orig.copyWith(
+      availableBalance: orig.availableBalance - totalDebit,
+    );
+    _cards[destIdx] = dest.copyWith(
+      availableBalance: dest.availableBalance + creditedAmount,
+    );
 
     final record = OperationRecordEntity(
       id: 'trf_${DateTime.now().millisecondsSinceEpoch}',
@@ -1123,7 +1225,8 @@ class OperationsRemoteDataSourceImpl implements OperationsRemoteDataSource {
       title: orig.currency != dest.currency
           ? 'Conversión multimoneda'
           : 'Transferencia interna',
-      description: concept ??
+      description:
+          concept ??
           'Traspaso de ${orig.bankName} (${orig.maskedCardNumber}) a ${dest.bankName} (${dest.maskedCardNumber})',
       amount: amount,
       currency: orig.currency,

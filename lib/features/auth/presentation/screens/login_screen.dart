@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/localization/app_locale_provider.dart';
 import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../../core/widgets/bankos_logo.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
@@ -30,13 +31,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    final lang = ref.read(localeNotifierProvider);
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor ingresa tu correo electrónico.'),
+        SnackBar(
+          content: Text(Tr.requiredEmail(lang)),
           backgroundColor: Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
         ),
@@ -46,8 +48,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor ingresa tu contraseña.'),
+        SnackBar(
+          content: Text(Tr.requiredPassword(lang)),
           backgroundColor: Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
         ),
@@ -55,10 +57,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
-    final success = await ref.read(authNotifierProvider.notifier).login(
-          email,
-          password,
-        );
+    final success = await ref
+        .read(authNotifierProvider.notifier)
+        .login(email, password);
 
     if (success && mounted) {
       final user = ref.read(authNotifierProvider).user;
@@ -68,8 +69,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context.go('/home');
       }
     } else if (mounted) {
-      final errorMsg = ref.read(authNotifierProvider).errorMessage ??
-          'Error al iniciar sesión. Revisa tus credenciales.';
+      final errorMsg =
+          ref.read(authNotifierProvider).errorMessage ??
+          Tr.credentialsInvalid(lang);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMsg),
@@ -81,17 +83,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleBiometricLogin() async {
-    final isApple = Theme.of(context).platform == TargetPlatform.iOS ||
+    final lang = ref.read(localeNotifierProvider);
+    final isApple =
+        Theme.of(context).platform == TargetPlatform.iOS ||
         Theme.of(context).platform == TargetPlatform.macOS;
 
     if (!AuthRemoteDataSourceImpl.isBiometricsEnabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            isApple
-                ? 'Face ID está desactivado. Inicia sesión con tus credenciales para activarlo.'
-                : 'La huella dactilar está desactivada. Inicia sesión con tus credenciales para activarla.',
-          ),
+          content: Text(Tr.biometricDisabled(lang, isApple)),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
         ),
@@ -99,8 +99,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
-    final success =
-        await ref.read(authNotifierProvider.notifier).loginWithBiometrics();
+    final success = await ref
+        .read(authNotifierProvider.notifier)
+        .loginWithBiometrics();
 
     if (success && mounted) {
       final user = ref.read(authNotifierProvider).user;
@@ -115,13 +116,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
+    final lang = ref.watch(localeNotifierProvider);
     final operationsState = ref.watch(operationsNotifierProvider);
     final currentBank = operationsState.currentBank;
     final isSuperAdmin = currentBank.isGlobal;
     final isLoading = authState.status == AuthStatus.loading;
 
     // Configuración estética y sobria según el banco activo (Bancolombia, Santander, Nu, Bogotá)
-    final slug = currentBank.code.toLowerCase();
+    final slug = currentBank.slug;
     final Color buttonBgColor;
     final Color buttonTextColor;
     final BorderSide? buttonBorder;
@@ -162,7 +164,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       linkColor = currentBank.primaryColor;
     }
 
-    final isApple = Theme.of(context).platform == TargetPlatform.iOS ||
+    final isApple =
+        Theme.of(context).platform == TargetPlatform.iOS ||
         Theme.of(context).platform == TargetPlatform.macOS;
 
     return Scaffold(
@@ -173,9 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 28.0),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
                   child: Column(
                     children: [
@@ -184,15 +185,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.arrow_back_ios_new,
-                                color: AppColors.primaryNavy, size: 20),
+                            icon: const Icon(
+                              Icons.arrow_back_ios_new,
+                              color: AppColors.primaryNavy,
+                              size: 20,
+                            ),
                             onPressed: () => context.go('/select-tenant'),
                           ),
                           TextButton.icon(
                             onPressed: () => context.go('/select-tenant'),
-                            icon: const Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.primaryNavy),
+                            icon: const Icon(
+                              Icons.swap_horiz_rounded,
+                              size: 16,
+                              color: AppColors.primaryNavy,
+                            ),
                             label: const Text(
-                              'Elegir otro banco',
+                              Tr.chooseAnotherBank(lang),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -215,7 +223,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
@@ -231,7 +242,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.shield_rounded, color: Color(0xFF0052FF), size: 18),
+                              Icon(
+                                Icons.shield_rounded,
+                                color: Color(0xFF0052FF),
+                                size: 18,
+                              ),
                               SizedBox(width: 8),
                               Text(
                                 'BankOs Core Global • SuperAdmin',
@@ -254,18 +269,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   color: Colors.white,
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: (buttonBorder?.color ?? buttonBgColor).withValues(alpha: 0.35),
+                                    color:
+                                        (buttonBorder?.color ?? buttonBgColor)
+                                            .withValues(alpha: 0.35),
                                     width: 1.5,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.05),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.05,
+                                      ),
                                       blurRadius: 10,
                                       offset: const Offset(0, 3),
                                     ),
                                   ],
                                 ),
-                                child: BankBrandLogo(bank: currentBank, size: 52, showName: false),
+                                child: BankBrandLogo(
+                                  bank: currentBank,
+                                  size: 52,
+                                  showName: false,
+                                ),
                               ),
                               const SizedBox(height: 12),
                               Text(
@@ -285,8 +308,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                       const SizedBox(height: 16),
 
-                      const Text(
-                        'Iniciar sesión',
+                      Text(
+                        Tr.loginTitle(lang),
                         style: TextStyle(
                           color: AppColors.primaryNavy,
                           fontSize: 22,
@@ -296,8 +319,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 6),
                       Text(
                         isSuperAdmin
-                            ? 'Ingresa tus credenciales de Administrador General para operar de forma segura.'
-                            : 'Ingresa a tu cuenta de ${currentBank.name} de forma segura.',
+                            ? Tr.superAdminLoginSub(lang)
+                            : Tr.loginSub(lang, currentBank.name),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Color(0xFF64748B),
@@ -310,7 +333,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       // Email Field
                       AuthTextField(
                         controller: _emailController,
-                        hintText: 'Correo electrónico',
+                        hintText: Tr.email(lang),
                         keyboardType: TextInputType.emailAddress,
                         isDark: false,
                       ),
@@ -320,7 +343,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       // Password Field
                       AuthTextField(
                         controller: _passwordController,
-                        hintText: 'Contraseña',
+                        hintText: Tr.password(lang),
                         isPassword: true,
                         isDark: false,
                       ),
@@ -352,7 +375,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ),
                                 )
                               : Text(
-                                  'Iniciar sesión',
+                                  Tr.loginTitle(lang),
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
@@ -368,11 +391,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       // ¿Olvidaste tu contraseña? Link
                       TextButton(
                         onPressed: () => context.go('/forgot-password'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: linkColor,
-                        ),
+                        style: TextButton.styleFrom(foregroundColor: linkColor),
                         child: Text(
-                          '¿Olvidaste tu contraseña?',
+                          Tr.forgotPassword(lang),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -387,14 +408,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       OutlinedButton.icon(
                         onPressed: isLoading ? null : _handleBiometricLogin,
                         icon: Icon(
-                          isApple ? Icons.face_rounded : Icons.fingerprint_rounded,
+                          isApple
+                              ? Icons.face_rounded
+                              : Icons.fingerprint_rounded,
                           size: 24,
                           color: AppColors.primaryNavy,
                         ),
                         label: Text(
-                          isApple
-                              ? 'Ingresar con Face ID'
-                              : 'Ingresar con huella dactilar',
+                          Tr.biometricLogin(lang, isApple),
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -405,12 +426,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           foregroundColor: AppColors.primaryNavy,
                           backgroundColor: Colors.white,
                           side: const BorderSide(
-                              color: Color(0xFFCBD5E1), width: 1.2),
+                            color: Color(0xFFCBD5E1),
+                            width: 1.2,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 12),
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
                         ),
                       ),
 
@@ -419,12 +444,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       // Bottom Register link (Oculto para SuperAdmin por seguridad)
                       if (!isSuperAdmin)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 24.0, top: 16.0),
+                          padding: const EdgeInsets.only(
+                            bottom: 24.0,
+                            top: 16.0,
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text(
-                                '¿Aún no tienes cuenta? ',
+                              Text(
+                                Tr.noAccount(lang),
                                 style: TextStyle(
                                   color: Color(0xFF64748B),
                                   fontSize: 13,
@@ -433,7 +461,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               GestureDetector(
                                 onTap: () => context.go('/register'),
                                 child: Text(
-                                  'Registrarse',
+                                  Tr.register(lang),
                                   style: TextStyle(
                                     color: linkColor,
                                     fontSize: 13,

@@ -1,6 +1,11 @@
 import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:dio/dio.dart';
+
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/errors/user_facing_error.dart';
+import '../../../../core/localization/app_locale_provider.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/user_entity.dart';
@@ -37,7 +42,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     if (lower.contains('bankos')) return 'banco-lombia';
     if (lower.contains('bogota')) return 'banco-bogota';
     if (lower.contains('santander')) return 'banco-santander';
-    if (lower.contains('nu.com') || lower.contains('banco-nu') || lower.contains('@nu.')) return 'banco-nu';
+    if (lower.contains('nu.com') ||
+        lower.contains('banco-nu') ||
+        lower.contains('@nu.'))
+      return 'banco-nu';
     if (lower.contains('occidente')) return 'banco-occidente';
     if (lower.contains('lombia')) return 'banco-lombia';
     return 'banco-lombia';
@@ -49,10 +57,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final cleanPassword = password.trim();
 
     if (cleanEmail.isEmpty) {
-      throw const ServerException(message: 'Por favor ingresa tu correo electrónico.');
+      throw ServerException(
+        message: Tr.requiredEmail(LocaleNotifier.currentLanguage),
+      );
     }
     if (cleanPassword.isEmpty) {
-      throw const ServerException(message: 'Por favor ingresa tu PIN de 4 dígitos.');
+      throw ServerException(
+        message: Tr.requiredPassword(LocaleNotifier.currentLanguage),
+      );
     }
 
     final tenantSlug = _inferTenant(cleanEmail);
@@ -80,16 +92,22 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         final role = roleStr == 'super_admin'
             ? UserRole.superAdmin
             : roleStr == 'admin'
-                ? UserRole.admin
-                : UserRole.client;
+            ? UserRole.admin
+            : UserRole.client;
 
-        final fullName = (userObj['fullName'] ?? userObj['name'] ?? userObj['tenantName']) as String?;
+        final fullName =
+            (userObj['fullName'] ?? userObj['name'] ?? userObj['tenantName'])
+                as String?;
 
         final displayName = (fullName != null && fullName.isNotEmpty)
             ? fullName
             : (role != UserRole.client
-                ? (cleanEmail.contains('bankos') ? 'Luigui Garizado' : 'Administrador')
-                : (cleanEmail.contains('bancolombia') ? 'Alejandro Morales' : cleanEmail.split('@')[0]));
+                  ? (cleanEmail.contains('bankos')
+                        ? 'Luigui Garizado'
+                        : 'Administrador')
+                  : (cleanEmail.contains('bancolombia')
+                        ? 'Alejandro Morales'
+                        : cleanEmail.split('@')[0]));
 
         return UserModel(
           id: userObj['userId'] as String? ?? 'usr_001',
@@ -100,25 +118,21 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         );
       } else {
         throw ServerException(
-          message: 'Error en la respuesta del servidor (${response.statusCode}).',
+          message:
+              'Error en la respuesta del servidor (${response.statusCode}).',
           statusCode: response.statusCode,
         );
       }
     } on DioException catch (dioErr) {
       final res = dioErr.response;
-      String errorMsg = 'Error al comunicarse con el servidor.';
-      if (res?.data != null && res!.data is Map<String, dynamic>) {
-        final errMap = res.data as Map<String, dynamic>;
-        errorMsg = errMap['message']?.toString() ??
-            errMap['description']?.toString() ??
-            'Credenciales no válidas.';
-      } else if (res?.statusCode == 401) {
-        errorMsg = 'El PIN de 4 dígitos ingresado es incorrecto.';
-      } else if (res?.statusCode == 404) {
-        errorMsg = 'Usuario o institución no encontrada.';
-      }
-
-      final isFlutterTest = Platform.environment.containsKey('FLUTTER_TEST');
+      final errorMsg = res?.statusCode == 401
+          ? (LocaleNotifier.currentLanguage == AppLanguage.en
+                ? 'Your credentials are incorrect or invalid.'
+                : 'Las credenciales son erróneas o no válidas.')
+          : UserFacingError.from(dioErr);
+      // Platform.environment is not available in Flutter Web; keep test fallback on native only.
+      final isFlutterTest =
+          !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
       final demoTenantByEmail = <String, String>{
         'admin@bankos.com': 'banco-lombia',
         'admin@bancolombia.com': 'banco-lombia',
@@ -140,16 +154,21 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       };
       final isConnectionError =
           dioErr.type == DioExceptionType.connectionError ||
-              dioErr.type == DioExceptionType.connectionTimeout;
-      final isValidDemoLogin = cleanPassword == '1234' &&
+          dioErr.type == DioExceptionType.connectionTimeout;
+      final isValidDemoLogin =
+          cleanPassword == '1234' &&
           demoTenantByEmail[cleanEmail] == tenantSlug;
       if (isFlutterTest || (isConnectionError && isValidDemoLogin)) {
         // Fallback resiliente: Si estamos en pruebas o el backend local no está encendido en localhost:3000,
         // permite autenticar la sesión demo según el rol para no bloquear las pruebas en el navegador.
         final role = demoRoleByEmail[cleanEmail] ?? UserRole.client;
         final displayName = cleanEmail.contains('admin')
-            ? (cleanEmail.contains('bankos') ? 'Luigui Garizado' : 'Administrador')
-            : (cleanEmail.contains('bancolombia') ? 'Alejandro Morales' : cleanEmail.split('@')[0]);
+            ? (cleanEmail.contains('bankos')
+                  ? 'Luigui Garizado'
+                  : 'Administrador')
+            : (cleanEmail.contains('bancolombia')
+                  ? 'Alejandro Morales'
+                  : cleanEmail.split('@')[0]);
 
         return UserModel(
           id: cleanEmail.contains('admin') ? 'usr_admin_001' : 'usr_client_001',
@@ -161,8 +180,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       if (isConnectionError) {
-        throw const ServerException(
-          message: 'No se pudo conectar con el banco para validar tus credenciales.',
+        throw ServerException(
+          message: Tr.bankConnectionError(LocaleNotifier.currentLanguage),
         );
       }
 
@@ -173,15 +192,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw ServerException(message: errorMsg, statusCode: res?.statusCode);
     } catch (e) {
       if (e is ServerException) rethrow;
-      throw ServerException(message: e.toString());
+      throw ServerException(message: UserFacingError.from(e));
     }
   }
 
   @override
   Future<UserModel> loginWithBiometrics() async {
     if (!isBiometricsEnabled) {
-      throw const ServerException(
-        message: 'La autenticación biométrica está desactivada en tu cuenta. Inicia sesión con tus credenciales y actívala en tu perfil.',
+      throw ServerException(
+        message: Tr.biometricUnavailable(LocaleNotifier.currentLanguage),
       );
     }
 
@@ -201,15 +220,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
             role: roleStr == 'super_admin'
                 ? UserRole.superAdmin
                 : roleStr == 'admin'
-                    ? UserRole.admin
-                    : UserRole.client,
+                ? UserRole.admin
+                : UserRole.client,
           );
         }
       } catch (_) {}
     }
 
-    throw const ServerException(
-      message: 'Inicia sesión con las credenciales del banco seleccionado para activar la autenticación biométrica.',
+    throw ServerException(
+      message: Tr.biometricLoginRequired(LocaleNotifier.currentLanguage),
     );
   }
 
@@ -229,7 +248,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final cleanPassword = password.trim();
-    final cleanPin = transactionalPin.trim().isNotEmpty ? transactionalPin.trim() : '1234';
+    final cleanPin = transactionalPin.trim().isNotEmpty
+        ? transactionalPin.trim()
+        : '1234';
     activeTransactionalPin = cleanPin;
     final tenantSlug = _inferTenant(cleanEmail);
 
@@ -270,7 +291,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         name: fullName,
         documentNumber: documentNumber,
         phone: phone,
-        token: 'jwt_mock_token_registered_${DateTime.now().millisecondsSinceEpoch}',
+        token:
+            'jwt_mock_token_registered_${DateTime.now().millisecondsSinceEpoch}',
         role: UserRole.client,
         transactionalPin: cleanPin,
       );

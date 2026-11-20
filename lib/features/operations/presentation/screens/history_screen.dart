@@ -33,7 +33,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final filteredList = allHistory.where((record) {
       final matchesFilter =
           _selectedFilter == null || record.type == _selectedFilter;
-      final matchesSearch = _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
           record.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           record.description.toLowerCase().contains(_searchQuery.toLowerCase());
       return matchesFilter && matchesSearch;
@@ -59,106 +60,142 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
             child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Barra de búsqueda "Buscar movimiento..." (como en el mockup)
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.softBackground,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                  style: const TextStyle(
-                      color: AppColors.primaryNavy, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: Tr.searchMovement(lang),
-                    hintStyle:
-                        const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                    prefixIcon:
-                        const Icon(Icons.search_rounded, color: Color(0xFF94A3B8)),
-                    border: InputBorder.none,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Barra de búsqueda "Buscar movimiento..." (como en el mockup)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 8.0,
                   ),
-                ),
-              ),
-            ),
-
-            // Fila de Chips de filtro (Todos, Depósitos, Retiros, etc.)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20.0, vertical: 6.0),
-              child: Row(
-                children: [
-                  _buildFilterChip(Tr.filterHistoryAll(lang), null),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(Tr.filterHistoryDeposits(lang), OperationType.deposit),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(Tr.filterHistoryWithdrawals(lang), OperationType.withdrawal),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                      Tr.filterTransfers(lang), OperationType.internalTransfer),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                      Tr.filterHistoryExchange(lang), OperationType.currencyExchange),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // Lista de transacciones limpia y plana
-            Expanded(
-              child: filteredList.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.history_toggle_off_rounded,
-                              size: 52, color: const Color(0xFF94A3B8).withValues(alpha: 0.5)),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'No hay transacciones registradas',
-                            style: TextStyle(
-                                color: Color(0xFF94A3B8), fontSize: 14),
-                          ),
-                        ],
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.softBackground,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                      style: const TextStyle(
+                        color: AppColors.primaryNavy,
+                        fontSize: 14,
                       ),
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFF1F5F9)),
+                      decoration: InputDecoration(
+                        hintText: Tr.searchMovement(lang),
+                        hintStyle: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 13,
                         ),
-                        child: ListView.separated(
-                          padding: EdgeInsets.zero,
-                          itemCount: filteredList.length,
-                          separatorBuilder: (context, index) =>
-                              const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                          itemBuilder: (context, index) {
-                            return _buildHistoryCard(filteredList[index]);
-                          },
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
                         ),
                       ),
                     ),
+                  ),
+                ),
+
+                // Fila de Chips de filtro (Todos, Depósitos, Retiros, etc.)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 6.0,
+                  ),
+                  child: Row(
+                    children: [
+                      _buildFilterChip(Tr.filterHistoryAll(lang), null),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        Tr.filterHistoryDeposits(lang),
+                        OperationType.deposit,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        Tr.filterHistoryWithdrawals(lang),
+                        OperationType.withdrawal,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        Tr.filterTransfers(lang),
+                        OperationType.internalTransfer,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        Tr.filterHistoryExchange(lang),
+                        OperationType.currencyExchange,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                // Lista de transacciones limpia y plana
+                Expanded(
+                  child: filteredList.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.history_toggle_off_rounded,
+                                size: 52,
+                                color: const Color(0xFF94A3B8)
+                                    .withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                Tr.noTransactionsHistory(lang),
+                                style: TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0xFFF1F5F9),
+                              ),
+                            ),
+                            child: ListView.separated(
+                              padding: EdgeInsets.zero,
+                              itemCount: filteredList.length,
+                              separatorBuilder: (context, index) =>
+                                  const Divider(
+                                    height: 1,
+                                    color: Color(0xFFF1F5F9),
+                                  ),
+                              itemBuilder: (context, index) {
+                                return _buildHistoryCard(
+                                  filteredList[index],
+                                  lang,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 16),
+              ],
             ),
-            const SizedBox(height: 16),
-          ],
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
   }
 
   Widget _buildFilterChip(String label, OperationType? type) {
@@ -186,7 +223,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  Widget _buildHistoryCard(OperationRecordEntity item) {
+  Widget _buildHistoryCard(OperationRecordEntity item, AppLanguage lang) {
     Color iconColor;
     Color iconBgColor;
     IconData icon;
@@ -269,12 +306,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 ),
               ),
               const SizedBox(height: 2),
-              const Text(
-                'Nov 2026',
-                style: TextStyle(
-                  color: Color(0xFF94A3B8),
-                  fontSize: 11,
-                ),
+              Text(
+                '${item.timestamp.day} ${Tr.monthShort(lang, item.timestamp.month)} ${item.timestamp.year}',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
               ),
             ],
           ),

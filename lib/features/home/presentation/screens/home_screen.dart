@@ -642,7 +642,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String balance,
     required String accountNumber,
   }) {
-    final slug = currentBank.code.toLowerCase();
+    final slug = currentBank.slug;
     final List<Color> gradientColors;
     if (slug.contains('nu')) {
       gradientColors = [const Color(0xFF820AD1), const Color(0xFF4C0677), const Color(0xFF280242)];

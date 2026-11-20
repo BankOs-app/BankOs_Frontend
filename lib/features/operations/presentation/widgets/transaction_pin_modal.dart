@@ -1,6 +1,9 @@
 import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
+
+import '../../../../core/localization/app_locale_provider.dart';
 import '../../../auth/data/datasources/auth_remote_data_source.dart';
 
 /// Modal Bancario Seguro para Autorización de Operaciones (PIN Transaccional de 4 Dígitos)
@@ -38,7 +41,8 @@ class TransactionPinModal extends StatefulWidget {
         title: title,
         amountFormatted: amountFormatted,
         accentColor: accentColor,
-        expectedPin: expectedPin ?? AuthRemoteDataSourceImpl.activeTransactionalPin,
+        expectedPin:
+            expectedPin ?? AuthRemoteDataSourceImpl.activeTransactionalPin,
       ),
     );
     return result ?? false;
@@ -94,7 +98,8 @@ class _TransactionPinModalState extends State<TransactionPinModal>
   }
 
   Future<void> _verifyPin() async {
-    final validPin = widget.expectedPin ?? AuthRemoteDataSourceImpl.activeTransactionalPin;
+    final validPin =
+        widget.expectedPin ?? AuthRemoteDataSourceImpl.activeTransactionalPin;
     if (_enteredPin == validPin || validPin.isEmpty) {
       HapticFeedback.mediumImpact();
       setState(() {
@@ -108,7 +113,7 @@ class _TransactionPinModalState extends State<TransactionPinModal>
       HapticFeedback.heavyImpact();
       _shakeController.forward(from: 0.0);
       setState(() {
-        _errorMessage = 'PIN incorrecto. Intenta de nuevo.';
+        _errorMessage = Tr.pinIncorrect(LocaleNotifier.currentLanguage);
         _enteredPin = '';
       });
     }
@@ -116,6 +121,7 @@ class _TransactionPinModalState extends State<TransactionPinModal>
 
   @override
   Widget build(BuildContext context) {
+    final lang = LocaleNotifier.currentLanguage;
     final accent = widget.accentColor == Colors.black
         ? const Color(0xFFFDDA24)
         : widget.accentColor;
@@ -137,162 +143,175 @@ class _TransactionPinModalState extends State<TransactionPinModal>
               top: BorderSide(color: Color(0xFF1E293B), width: 1.2),
             ),
           ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Barra de agarre superior
-          Container(
-            width: 44,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF334155),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Barra de agarre superior
+              Container(
+                width: 44,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF334155),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
 
-          // Cabecera con Icono de Seguridad
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+              // Cabecera con Icono de Seguridad
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: accent.withValues(alpha: 0.4)),
-                      ),
-                      child: Icon(
-                        Icons.shield_rounded,
-                        color: accent,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
                       children: [
-                        const Text(
-                          'Autorizar Operación',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: accent.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.shield_rounded,
+                            color: accent,
+                            size: 20,
                           ),
                         ),
-                        Text(
-                          widget.title,
-                          style: const TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 12,
-                          ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              Tr.authorizeOperation(lang),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              widget.title,
+                              style: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Colors.white70,
+                      ),
+                      onPressed: () => Navigator.of(context).pop(false),
+                    ),
                   ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.white70),
-                  onPressed: () => Navigator.of(context).pop(false),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Monto a confirmar
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Monto a confirmar
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24.0),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0B1322),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF1E293B)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Monto a procesar:',
-                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B1322),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF1E293B)),
                 ),
-                Text(
-                  widget.amountFormatted,
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      Tr.amountToProcess(lang),
+                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                    ),
+                    Text(
+                      widget.amountFormatted,
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-          // Título de ingreso de PIN
-          const Text(
-            'Ingresa tu PIN de 4 dígitos',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Clave de seguridad creada en tu registro',
-            style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
-          ),
+              // Título de ingreso de PIN
+              Text(
+                Tr.enterPin(lang),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                Tr.pinSecuritySub(lang),
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+              ),
 
-          const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-          // Visualizador de los 4 Dígitos del PIN con animación de Shake
-          AnimatedBuilder(
-            animation: _shakeController,
-            builder: (context, child) {
-              final offset = math.sin(_shakeController.value * 6 * math.pi) *
-                  (1.0 - _shakeController.value) *
-                  12.0;
-              return Transform.translate(
-                offset: Offset(offset, 0),
-                child: child,
-              );
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (index) {
-                final isFilled = index < _enteredPin.length;
-                return Container(
-                  width: 48,
-                  height: 48,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: _isSuccess
-                        ? const Color(0xFF10B981).withValues(alpha: 0.2)
-                        : isFilled
+              // Visualizador de los 4 Dígitos del PIN con animación de Shake
+              AnimatedBuilder(
+                animation: _shakeController,
+                builder: (context, child) {
+                  final offset =
+                      math.sin(_shakeController.value * 6 * math.pi) *
+                      (1.0 - _shakeController.value) *
+                      12.0;
+                  return Transform.translate(
+                    offset: Offset(offset, 0),
+                    child: child,
+                  );
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(4, (index) {
+                    final isFilled = index < _enteredPin.length;
+                    return Container(
+                      width: 48,
+                      height: 48,
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: _isSuccess
+                            ? const Color(0xFF10B981).withValues(alpha: 0.2)
+                            : isFilled
                             ? accent.withValues(alpha: 0.15)
                             : const Color(0xFF0B1322),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _isSuccess
-                          ? const Color(0xFF10B981)
-                          : isFilled
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _isSuccess
+                              ? const Color(0xFF10B981)
+                              : isFilled
                               ? accent
                               : const Color(0xFF1E293B),
-                      width: isFilled ? 1.8 : 1.2,
-                    ),
-                  ),
-                  child: Center(
-                    child: _isSuccess
-                        ? const Icon(Icons.check_rounded, color: Color(0xFF10B981), size: 22)
-                        : isFilled
+                          width: isFilled ? 1.8 : 1.2,
+                        ),
+                      ),
+                      child: Center(
+                        child: _isSuccess
+                            ? const Icon(
+                                Icons.check_rounded,
+                                color: Color(0xFF10B981),
+                                size: 22,
+                              )
+                            : isFilled
                             ? Container(
                                 width: 14,
                                 height: 14,
@@ -302,66 +321,66 @@ class _TransactionPinModalState extends State<TransactionPinModal>
                                 ),
                               )
                             : null,
-                  ),
-                );
-              }),
-            ),
-          ),
-
-          // Mensaje de error si falla
-          if (_errorMessage != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              _errorMessage!,
-              style: const TextStyle(
-                color: Color(0xFFEF4444),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                      ),
+                    );
+                  }),
+                ),
               ),
-            ),
-          ],
 
-          const SizedBox(height: 18),
+              // Mensaje de error si falla
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(
+                    color: Color(0xFFEF4444),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
 
-          // Teclado Numérico Seguro (0-9, Cancelar y Backspace)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 36.0),
-            child: Column(
-              children: [
-                _buildKeypadRow(['1', '2', '3'], accent),
-                const SizedBox(height: 10),
-                _buildKeypadRow(['4', '5', '6'], accent),
-                const SizedBox(height: 10),
-                _buildKeypadRow(['7', '8', '9'], accent),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              const SizedBox(height: 18),
+
+              // Teclado Numérico Seguro (0-9, Cancelar y Backspace)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 36.0),
+                child: Column(
                   children: [
-                    // Botón Cancelar
-                    _buildActionButton(
-                      icon: Icons.cancel_outlined,
-                      color: const Color(0xFF64748B),
-                      onTap: () => Navigator.of(context).pop(false),
-                    ),
-                    // Dígito 0
-                    _buildNumberButton('0', accent),
-                    // Botón Borrar
-                    _buildActionButton(
-                      icon: Icons.backspace_outlined,
-                      color: const Color(0xFF94A3B8),
-                      onTap: _onBackspace,
+                    _buildKeypadRow(['1', '2', '3'], accent),
+                    const SizedBox(height: 10),
+                    _buildKeypadRow(['4', '5', '6'], accent),
+                    const SizedBox(height: 10),
+                    _buildKeypadRow(['7', '8', '9'], accent),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Botón Cancelar
+                        _buildActionButton(
+                          icon: Icons.cancel_outlined,
+                          color: const Color(0xFF64748B),
+                          onTap: () => Navigator.of(context).pop(false),
+                        ),
+                        // Dígito 0
+                        _buildNumberButton('0', accent),
+                        // Botón Borrar
+                        _buildActionButton(
+                          icon: Icons.backspace_outlined,
+                          color: const Color(0xFF94A3B8),
+                          onTap: _onBackspace,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 10),
+            ],
           ),
-          const SizedBox(height: 10),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 
   Widget _buildKeypadRow(List<String> digits, Color accent) {
@@ -413,9 +432,7 @@ class _TransactionPinModalState extends State<TransactionPinModal>
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFF1E293B)),
         ),
-        child: Center(
-          child: Icon(icon, color: color, size: 20),
-        ),
+        child: Center(child: Icon(icon, color: color, size: 20)),
       ),
     );
   }

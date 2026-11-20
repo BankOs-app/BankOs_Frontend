@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/localization/app_locale_provider.dart';
 import '../../../../core/widgets/bank_brand_logo.dart';
 import '../../../../core/widgets/bankos_logo.dart';
 import '../../../operations/domain/entities/registered_bank_entity.dart';
@@ -43,21 +44,30 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
   @override
   Widget build(BuildContext context) {
     final operationsState = ref.watch(operationsNotifierProvider);
+    final lang = ref.watch(localeNotifierProvider);
     final rawBanks = operationsState.banks;
 
     // Filtrar los bancos comerciales (excluyendo el global para mostrarlo en su apartado dedicado)
-    final filteredFromState =
-        rawBanks.where((b) => !b.isGlobal && b.id != 'bank_bankos_global').toList();
+    final filteredFromState = rawBanks
+        .where((b) => !b.isGlobal && b.id != 'bank_bankos_global')
+        .toList();
     final commercialBanks = filteredFromState.isNotEmpty
         ? filteredFromState
         : RegisteredBankEntity.preloadedCommercialBanks;
 
     RegisteredBankEntity? currentChoice;
     if (commercialBanks.isNotEmpty) {
-      if (_selectedBank != null && commercialBanks.any((b) => b.id == _selectedBank!.id)) {
-        currentChoice = commercialBanks.firstWhere((b) => b.id == _selectedBank!.id);
-      } else if (commercialBanks.any((b) => b.id == operationsState.currentBank.id)) {
-        currentChoice = commercialBanks.firstWhere((b) => b.id == operationsState.currentBank.id);
+      if (_selectedBank != null &&
+          commercialBanks.any((b) => b.id == _selectedBank!.id)) {
+        currentChoice = commercialBanks.firstWhere(
+          (b) => b.id == _selectedBank!.id,
+        );
+      } else if (commercialBanks.any(
+        (b) => b.id == operationsState.currentBank.id,
+      )) {
+        currentChoice = commercialBanks.firstWhere(
+          (b) => b.id == operationsState.currentBank.id,
+        );
       } else {
         currentChoice = commercialBanks.first;
       }
@@ -71,7 +81,10 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 620),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 16.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -105,8 +118,8 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
                   const SizedBox(height: 18),
 
                   // Encabezado: "Seleccionar Entidad" (sin banner de entidades)
-                  const Text(
-                    'Seleccionar Entidad',
+                  Text(
+                    Tr.selectInstitution(lang),
                     style: TextStyle(
                       color: Color(0xFF0F172A),
                       fontSize: 22,
@@ -115,8 +128,8 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Conéctate a tu institución financiera para operar de forma segura.',
+                  Text(
+                    Tr.selectInstitutionSub(lang),
                     style: TextStyle(
                       color: Color(0xFF64748B),
                       fontSize: 13,
@@ -134,13 +147,15 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: commercialBanks.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final bank = commercialBanks[index];
                       final isSelected = currentChoice?.id == bank.id;
                       return _buildEntityCard(
                         bank: bank,
                         isSelected: isSelected,
+                        lang: lang,
                         onTap: () => _loginToSelectedBank(bank),
                       );
                     },
@@ -151,7 +166,7 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
                   // =========================================================
                   // APARTADO DEDICADO: BANKOS CORE GLOBAL (SUPERADMIN)
                   // =========================================================
-                  _buildSuperAdminPortalCard(),
+                  _buildSuperAdminPortalCard(lang),
 
                   const SizedBox(height: 24),
                 ],
@@ -167,9 +182,10 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
   Widget _buildEntityCard({
     required RegisteredBankEntity bank,
     required bool isSelected,
+    required AppLanguage lang,
     required VoidCallback onTap,
   }) {
-    final slug = bank.code.toLowerCase();
+    final slug = bank.slug;
 
     // Colores de acento según la institución
     final Color buttonAccentColor;
@@ -253,7 +269,10 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
 
                       // Badge Moneda (USD / COP)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: bank.currency == 'USD'
                               ? const Color(0xFFDCFCE7)
@@ -265,7 +284,9 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
                           style: TextStyle(
                             color: bank.currency == 'USD'
                                 ? const Color(0xFF16A34A)
-                                : (buttonAccentColor == Colors.black ? const Color(0xFF0F172A) : buttonAccentColor),
+                                : (buttonAccentColor == Colors.black
+                                      ? const Color(0xFF0F172A)
+                                      : buttonAccentColor),
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -277,7 +298,7 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
                   Row(
                     children: [
                       Text(
-                        'Cuenta en ${bank.currency} • ',
+                        '${Tr.bankCurrencyAccount(lang, bank.currency)} • ',
                         style: const TextStyle(
                           color: Color(0xFF64748B),
                           fontSize: 12,
@@ -289,8 +310,8 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
                         size: 12,
                       ),
                       const SizedBox(width: 2),
-                      const Text(
-                        'Banca Digital Segura',
+                      Text(
+                        Tr.secureDigitalBanking(lang),
                         style: TextStyle(
                           color: Color(0xFF64748B),
                           fontSize: 12,
@@ -309,7 +330,7 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
 
   /// Apartado Exclusivo para BankOs Core Global (SuperAdmin)
   /// - Conduce directamente al Login Administrativo oficial
-  Widget _buildSuperAdminPortalCard() {
+  Widget _buildSuperAdminPortalCard(AppLanguage lang) {
     return GestureDetector(
       onTap: _navigateToSuperAdminLogin,
       behavior: HitTestBehavior.opaque,
@@ -317,10 +338,7 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFBFDBFE),
-            width: 1.2,
-          ),
+          border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
           boxShadow: [
             BoxShadow(
               color: const Color(0xFF2563EB).withValues(alpha: 0.06),
@@ -338,15 +356,16 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFFDBEAFE),
-                  width: 1,
-                ),
+                border: Border.all(color: const Color(0xFFDBEAFE), width: 1),
               ),
-              child: const Icon(Icons.shield_rounded, color: Color(0xFF2563EB), size: 24),
+              child: const Icon(
+                Icons.shield_rounded,
+                color: Color(0xFF2563EB),
+                size: 24,
+              ),
             ),
             const SizedBox(width: 14),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -360,7 +379,7 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'Consola para Administrador General',
+                    Tr.superAdminConsole(lang),
                     style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
                   ),
                 ],
@@ -369,15 +388,21 @@ class _SelectTenantScreenState extends ConsumerState<SelectTenantScreen> {
             ElevatedButton.icon(
               onPressed: _navigateToSuperAdminLogin,
               icon: const Icon(Icons.admin_panel_settings_rounded, size: 16),
-              label: const Text(
-                'SuperAdmin',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              label: Text(
+                Tr.superAdminLabel(lang),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),

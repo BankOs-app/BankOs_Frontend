@@ -1,19 +1,23 @@
 import 'package:material_ui/material_ui.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_dimensions.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/localization/app_locale_provider.dart';
 import '../../domain/entities/account_entity.dart';
 
 class BalanceCardWidget extends StatelessWidget {
   final AccountEntity? account;
   final bool hideBalance;
   final VoidCallback onToggleVisibility;
+  final AppLanguage lang;
 
   const BalanceCardWidget({
     super.key,
     required this.account,
     required this.hideBalance,
     required this.onToggleVisibility,
+    required this.lang,
   });
 
   @override
@@ -24,7 +28,7 @@ class BalanceCardWidget extends StatelessWidget {
 
     final accountInfo = account != null
         ? '${account!.accountType} ${account!.maskedAccountNumber}'
-        : '${AppStrings.defaultCheckingAccount} •••• 4829';
+        : '${Tr.defaultCheckingAccount(lang)} •••• 4829';
 
     return Container(
       width: double.infinity,
@@ -50,8 +54,8 @@ class BalanceCardWidget extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                AppStrings.totalBalance,
+              Text(
+                Tr.totalBalance(lang),
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 14,
@@ -85,10 +89,10 @@ class BalanceCardWidget extends StatelessWidget {
                 accountInfo,
                 style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
-              const Chip(
+              Chip(
                 label: Text(
-                  AppStrings.activeStatus,
-                  style: TextStyle(color: Colors.white, fontSize: 11),
+                  Tr.activeAccountStatus(lang),
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
                 ),
                 backgroundColor: AppColors.emeraldSuccess,
                 padding: EdgeInsets.zero,

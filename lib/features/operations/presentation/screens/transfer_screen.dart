@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/localization/app_locale_provider.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../domain/entities/bank_card_entity.dart';
 import '../../domain/entities/registered_bank_entity.dart';
@@ -47,8 +48,9 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-            isError ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+        backgroundColor: isError
+            ? const Color(0xFFEF4444)
+            : const Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -56,36 +58,39 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   }
 
   void _proceedToPreview() {
+    final lang = ref.read(localeNotifierProvider);
     final operationsState = ref.read(operationsNotifierProvider);
     final origBank = operationsState.currentBank;
     final signedInUser = ref.read(authNotifierProvider).user;
     final ownedCards = operationsState
         .getCardsForBank(origBank.id)
-        .where((card) =>
-            signedInUser?.name != null &&
-            card.cardHolder.trim().toLowerCase() ==
-                signedInUser!.name!.trim().toLowerCase())
+        .where(
+          (card) =>
+              signedInUser?.name != null &&
+              card.cardHolder.trim().toLowerCase() ==
+                  signedInUser!.name!.trim().toLowerCase(),
+        )
         .toList();
     if (ownedCards.isEmpty) {
-      _showSnackBar('No encontramos una cuenta asociada a tu sesión en ${origBank.name}.');
+      _showSnackBar(Tr.noSessionAccount(lang, origBank.name));
       return;
     }
     final origCard = ownedCards.first;
 
     final destinationNumber = _destinationAccountController.text.trim();
     if (!RegExp(r'^\d{6,30}$').hasMatch(destinationNumber)) {
-      _showSnackBar('Ingresa un número de cuenta válido (solo números).');
+      _showSnackBar(Tr.destinationNumberInvalid(lang));
       return;
     }
     final destinationCards = operationsState.cards
         .where((card) => card.cardNumber.trim() == destinationNumber)
         .toList();
     if (destinationCards.isEmpty) {
-      _showSnackBar('No encontramos una cuenta con ese número.');
+      _showSnackBar(Tr.destinationNotFound(lang));
       return;
     }
     if (destinationCards.length > 1) {
-      _showSnackBar('El número de cuenta no identifica una única cuenta destino.');
+      _showSnackBar(Tr.destinationAmbiguous(lang));
       return;
     }
     final destCard = destinationCards.first;
@@ -93,36 +98,40 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         .where((bank) => bank.id == destCard.bankId)
         .toList();
     if (matchingBanks.isEmpty) {
-      _showSnackBar('No encontramos la institución de la cuenta destino.');
+      _showSnackBar(Tr.destinationBankNotFound(lang));
       return;
     }
     final destBank = matchingBanks.first;
 
     if (origCard.id == destCard.id) {
-      _showSnackBar('La cuenta de origen y destino no pueden ser la misma.');
+      _showSnackBar(Tr.sameAccountTransfer(lang));
       return;
     }
 
     if (!origCard.isActive) {
-      _showSnackBar('La cuenta de origen no se encuentra activa.');
+      _showSnackBar(Tr.sourceAccountInactive(lang));
       return;
     }
 
     if (!destCard.isActive) {
-      _showSnackBar('La cuenta de destino no se encuentra activa.');
+      _showSnackBar(Tr.destinationAccountInactive(lang));
       return;
     }
 
     final amountText = _amountController.text.trim();
     final amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) {
-      _showSnackBar('Ingresa un monto numérico válido mayor a 0.');
+      _showSnackBar(Tr.transferInvalidAmount(lang));
       return;
     }
 
     if (origCard.availableBalance < amount) {
       _showSnackBar(
-        'Saldo insuficiente en ${origBank.name}. Disponible: ${origCard.formattedBalance}.',
+        Tr.transferInsufficientFunds(
+          lang,
+          origBank.name,
+          origCard.formattedBalance,
+        ),
       );
       return;
     }
@@ -143,12 +152,16 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     required BankCardEntity destCard,
     required double amount,
   }) {
+    final lang = ref.read(localeNotifierProvider);
     final isMultiCurrency = origCard.currency != destCard.currency;
     final double exchangeRate;
     final double recipientAmount;
 
     if (isMultiCurrency) {
-      exchangeRate = StaticExchangeRate.getRate(origCard.currency, destCard.currency);
+      exchangeRate = StaticExchangeRate.getRate(
+        origCard.currency,
+        destCard.currency,
+      );
       recipientAmount = amount * exchangeRate;
     } else {
       exchangeRate = 1.0;
@@ -205,8 +218,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Text(
-                            'Detalle y Divisa a Recibir',
+                          Text(
+                            Tr.transferSummaryTitle(lang),
                             style: TextStyle(
                               color: AppColors.primaryNavy,
                               fontSize: 18,
@@ -216,8 +229,10 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                         ],
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded,
-                            color: Color(0xFF64748B)),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Color(0xFF64748B),
+                        ),
                         onPressed: () => Navigator.pop(modalContext),
                       ),
                     ],
@@ -242,8 +257,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'El destinatario recibirá exactamente:',
+                        Text(
+                          Tr.recipientWillReceive(lang),
                           style: TextStyle(
                             color: Color(0xFF94A3B8),
                             fontSize: 12,
@@ -263,17 +278,24 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                           const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              origCard.currency == 'COP' && destCard.currency == 'USD'
-                                  ? 'Tasa aplicada: 1 USD ≈ \$4,150 COP (1 COP = 0.000241 USD)'
-                                  : (origCard.currency == 'USD' && destCard.currency == 'COP'
-                                      ? 'Tasa aplicada: 1 USD ≈ \$4,150 COP'
-                                      : 'Tasa de cambio: 1 ${origCard.currency} = ${exchangeRate.toStringAsFixed(4)} ${destCard.currency}'),
+                              Tr.appliedExchangeRateText(
+                                lang,
+                                origCard.currency == 'COP' &&
+                                        destCard.currency == 'USD'
+                                    ? '1 USD ≈ \$4,150 COP (1 COP = 0.000241 USD)'
+                                    : (origCard.currency == 'USD' &&
+                                              destCard.currency == 'COP'
+                                          ? '1 USD ≈ \$4,150 COP'
+                                          : '1 ${origCard.currency} = ${exchangeRate.toStringAsFixed(4)} ${destCard.currency}'),
+                              ),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -290,23 +312,24 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
 
                   // Desglose de Cuentas
                   _buildPreviewRow(
-                    label: 'Cuenta de origen:',
+                    label: Tr.sourceAccountLabel(lang),
                     value: '${origBank.name} • No. ${origCard.cardNumber}',
                   ),
                   const SizedBox(height: 8),
                   _buildPreviewRow(
-                    label: 'Cuenta destino:',
+                    label: Tr.destinationAccountLabel(lang),
                     value: '${destBank.name} • No. ${destCard.cardNumber}',
                   ),
                   const SizedBox(height: 8),
                   _buildPreviewRow(
-                    label: 'Monto debitado:',
-                    value: '${origCard.currency} \$${amount.toStringAsFixed(2)}',
+                    label: Tr.amountDebitedLabel(lang),
+                    value:
+                        '${origCard.currency} \$${amount.toStringAsFixed(2)}',
                   ),
                   const SizedBox(height: 8),
                   _buildPreviewRow(
-                    label: 'Comisión de transferencia:',
-                    value: 'Gratis (\$0.00)',
+                    label: Tr.transferFeeLabelSummary(lang),
+                    value: '${Tr.noFee(lang)} (\$0.00)',
                     valueColor: const Color(0xFF16A34A),
                   ),
 
@@ -336,8 +359,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
-                        'Confirmar y Enviar Fondos',
+                      child: Text(
+                        Tr.confirmSendFunds(lang),
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -401,10 +424,11 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     required double amount,
     required double recipientAmount,
   }) async {
+    final lang = ref.read(localeNotifierProvider);
     final brandAccent = origBank.accentColor;
     final authorized = await TransactionPinModal.show(
       context,
-      title: 'Transferir a ${destBank.name}',
+      title: Tr.transferTo(lang, destBank.name),
       amountFormatted: '${origCard.currency} \$${amount.toStringAsFixed(2)}',
       accentColor: brandAccent,
     );
@@ -420,7 +444,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
           amount: amount,
           concept: _conceptController.text.trim().isNotEmpty
               ? _conceptController.text.trim()
-              : 'Traspaso a ${destBank.name} (No. ${destCard.cardNumber})',
+              : Tr.transferConcept(lang, destBank.name, destCard.cardNumber),
         );
 
     if (mounted) {
@@ -434,16 +458,20 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Row(
+            title: Row(
               children: [
-                Icon(Icons.check_circle_rounded,
-                    color: Color(0xFF10B981), size: 28),
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF10B981),
+                  size: 28,
+                ),
                 SizedBox(width: 8),
                 Text(
-                  'Transferencia Exitosa',
-                  style: TextStyle(
-                      color: AppColors.primaryNavy,
-                      fontWeight: FontWeight.bold),
+                  Tr.transferSuccess(lang),
+                  style: const TextStyle(
+                    color: AppColors.primaryNavy,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -453,10 +481,29 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               children: [
                 Text(
                   origCard.currency != destCard.currency
-                      ? 'Se debitaron \$${amount.toStringAsFixed(2)} ${origCard.currency} de tu cuenta en ${origBank.name} y se acreditaron \$${recipientAmount.toStringAsFixed(2)} ${destCard.currency} en la cuenta de ${destBank.name} (No. ${destCard.cardNumber}).'
-                      : 'Se han transferido \$${amount.toStringAsFixed(2)} ${origCard.currency} desde ${origBank.name} hacia ${destBank.name} (No. ${destCard.cardNumber}).',
+                      ? Tr.transferReceipt(
+                          lang,
+                          '\$${amount.toStringAsFixed(2)}',
+                          origCard.currency,
+                          origBank.name,
+                          '\$${recipientAmount.toStringAsFixed(2)}',
+                          destCard.currency,
+                          destBank.name,
+                          destCard.cardNumber,
+                        )
+                      : Tr.sameCurrencyTransferReceipt(
+                          lang,
+                          '\$${amount.toStringAsFixed(2)}',
+                          origCard.currency,
+                          origBank.name,
+                          destBank.name,
+                          destCard.cardNumber,
+                        ),
                   style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -473,7 +520,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Aceptar'),
+                child: Text(Tr.accept(lang)),
               ),
             ],
           ),
@@ -481,38 +528,42 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         _amountController.clear();
         _conceptController.clear();
       } else {
-        _showSnackBar(state.errorMessage ??
-            'Ocurrió un error al procesar la transferencia.');
+        _showSnackBar(state.errorMessage ?? Tr.genericError(lang));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(localeNotifierProvider);
     final operationsState = ref.watch(operationsNotifierProvider);
     final currentBank = operationsState.currentBank;
     final signedInUser = ref.watch(authNotifierProvider).user;
     final ownedCards = operationsState
         .getCardsForBank(currentBank.id)
-        .where((card) =>
-            signedInUser?.name != null &&
-            card.cardHolder.trim().toLowerCase() ==
-                signedInUser!.name!.trim().toLowerCase())
+        .where(
+          (card) =>
+              signedInUser?.name != null &&
+              card.cardHolder.trim().toLowerCase() ==
+                  signedInUser!.name!.trim().toLowerCase(),
+        )
         .toList();
     final originCard = ownedCards.isEmpty ? null : ownedCards.first;
     final destinationNumber = _destinationAccountController.text.trim();
     final destinationCards = operationsState.cards
         .where((card) => card.cardNumber.trim() == destinationNumber)
         .toList();
-    final destinationCard =
-        destinationCards.isEmpty ? null : destinationCards.first;
+    final destinationCard = destinationCards.isEmpty
+        ? null
+        : destinationCards.first;
     final destinationBanks = destinationCard == null
         ? <RegisteredBankEntity>[]
         : operationsState.banks
-            .where((bank) => bank.id == destinationCard.bankId)
-            .toList();
-    final destinationBank =
-        destinationBanks.isEmpty ? null : destinationBanks.first;
+              .where((bank) => bank.id == destinationCard.bankId)
+              .toList();
+    final destinationBank = destinationBanks.isEmpty
+        ? null
+        : destinationBanks.first;
 
     final isLoading = operationsState.status == OperationsStatus.loading;
 
@@ -522,12 +573,15 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new,
-              color: AppColors.primaryNavy, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.primaryNavy,
+            size: 20,
+          ),
           onPressed: () => context.go('/home'),
         ),
-        title: const Text(
-          'Transferencia de Fondos',
+        title: Text(
+          Tr.transferFunds(lang),
           style: TextStyle(
             color: AppColors.primaryNavy,
             fontSize: 18,
@@ -543,8 +597,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. CUENTA DE ORIGEN
-              const Text(
-                '1. Cuenta de origen (De dónde saldrán los fondos):',
+              Text(
+                Tr.transferSourceAccount(lang),
                 style: TextStyle(
                   color: AppColors.primaryNavy,
                   fontSize: 13,
@@ -563,8 +617,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                 ),
                 child: Text(
                   originCard == null
-                      ? 'No hay una cuenta asociada a esta sesión en ${currentBank.name}.'
-                      : '${currentBank.name} • ${originCard.cardTypeLabel} • No. ${originCard.cardNumber} (${originCard.formattedBalance})',
+                      ? Tr.noSessionAccount(lang, currentBank.name)
+                      : '${currentBank.name} • ${Tr.cardType(lang, originCard.cardType == BankCardType.credit)} • No. ${originCard.cardNumber} (${originCard.formattedBalance})',
                   style: const TextStyle(
                     color: AppColors.primaryNavy,
                     fontSize: 13,
@@ -576,8 +630,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               const SizedBox(height: 18),
 
               // 2. CUENTA DESTINO
-              const Text(
-                '2. Cuenta destino (A dónde se enviarán los fondos):',
+              Text(
+                Tr.transferDestinationAccount(lang),
                 style: TextStyle(
                   color: AppColors.primaryNavy,
                   fontSize: 13,
@@ -600,13 +654,18 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
-                  decoration: const InputDecoration(
-                    hintText: 'Escribe el número de cuenta',
-                    prefixIcon: Icon(Icons.account_balance_rounded,
-                        color: AppColors.brandBlue, size: 20),
+                  decoration: InputDecoration(
+                    hintText: Tr.destinationAccountHint(lang),
+                    prefixIcon: Icon(
+                      Icons.account_balance_rounded,
+                      color: AppColors.brandBlue,
+                      size: 20,
+                    ),
                     border: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ),
@@ -621,7 +680,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                     border: Border.all(color: const Color(0xFFBFDBFE)),
                   ),
                   child: Text(
-                    '${destinationBank.name} • ${destinationCard.currency} • ${destinationCard.cardTypeLabel}',
+                    '${destinationBank.name} • ${destinationCard.currency} • ${Tr.cardType(lang, destinationCard.cardType == BankCardType.credit)}',
                     style: const TextStyle(
                       color: AppColors.primaryNavy,
                       fontSize: 13,
@@ -632,8 +691,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               ],
               if (destinationNumber.isNotEmpty && destinationCard == null) ...[
                 const SizedBox(height: 10),
-                const Text(
-                  'No encontramos una cuenta con ese número.',
+                Text(
+                  Tr.destinationNotFound(lang),
                   style: TextStyle(color: Color(0xFFDC2626), fontSize: 12),
                 ),
               ],
@@ -641,8 +700,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               const SizedBox(height: 18),
 
               // 3. MONTO A TRANSFERIR
-              const Text(
-                '3. Monto a transferir:',
+              Text(
+                Tr.transferAmountLabel(lang),
                 style: TextStyle(
                   color: AppColors.primaryNavy,
                   fontSize: 13,
@@ -659,16 +718,20 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                 ),
                 child: TextField(
                   controller: _amountController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   style: const TextStyle(
                     color: AppColors.primaryNavy,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.attach_money_rounded,
-                        color: AppColors.brandBlue, size: 20),
+                    prefixIcon: const Icon(
+                      Icons.attach_money_rounded,
+                      color: AppColors.brandBlue,
+                      size: 20,
+                    ),
                     suffixText: originCard?.currency ?? 'COP',
                     suffixStyle: const TextStyle(
                       color: AppColors.brandBlue,
@@ -677,10 +740,14 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                     ),
                     hintText: '0.00',
                     hintStyle: const TextStyle(
-                        color: Color(0xFF94A3B8), fontSize: 15),
+                      color: Color(0xFF94A3B8),
+                      fontSize: 15,
+                    ),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ),
@@ -688,8 +755,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               const SizedBox(height: 14),
 
               // Concepto (Opcional)
-              const Text(
-                'Concepto (opcional):',
+              Text(
+                Tr.conceptOptional(lang),
                 style: TextStyle(
                   color: AppColors.primaryNavy,
                   fontSize: 12,
@@ -706,14 +773,20 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                 child: TextField(
                   controller: _conceptController,
                   style: const TextStyle(
-                      color: AppColors.primaryNavy, fontSize: 13),
-                  decoration: const InputDecoration(
-                    hintText: 'Ej. Pago de servicios o envío a familiares',
-                    hintStyle:
-                        TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                    color: AppColors.primaryNavy,
+                    fontSize: 13,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: Tr.transferConceptHint(lang),
+                    hintStyle: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 13,
+                    ),
                     border: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ),
@@ -743,8 +816,8 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'Continuar y Revisar Divisa',
+                      : Text(
+                          Tr.reviewTransfer(lang),
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
